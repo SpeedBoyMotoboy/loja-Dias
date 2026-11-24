@@ -1,11 +1,11 @@
 {
-  "_obs": "Valores marcados EXEMPLO precisam ser confirmados pelo Luan antes de publicar.",
+  "_obs": "Fretes confirmados pelo Luan em 24/11.",
   "nome_loja": "Loja Dias Peças",
   "site_url": "https://speedboymotoboy.github.io/loja-Dias",
   "whatsapp": "5527999165959",
   "whatsapp_exibir": "(27) 99916-5959",
-  "endereco": "Serra, ES",
-  "cidade_base": "Serra",
+  "endereco": "Vila Velha, ES",
+  "cidade_base": "Vila Velha",
   "horario": "Seg a Sáb, 8h às 18h",
   "desconto_pix": 0,
   "corte_mesmo_dia": "12h",
@@ -13,7 +13,7 @@
     {
       "nome": "Vitória",
       "slug": "vitoria",
-      "normal": 9
+      "normal": 10
     },
     {
       "nome": "Vila Velha",
@@ -23,12 +23,12 @@
     {
       "nome": "Serra",
       "slug": "serra",
-      "normal": 12
+      "normal": 15
     },
     {
       "nome": "Cariacica",
       "slug": "cariacica",
-      "normal": 12
+      "normal": 10
     },
     {
       "nome": "Viana",
@@ -42,6 +42,6 @@
     "nome": "69 8 7 R A DA SILVA",
     "cidade": "SERRA"
   },
-  "fretes_confirmados": false,
+  "fretes_confirmados": true,
   "cnpj": "46.178.859/0001-96"
 }
