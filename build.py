@@ -43,6 +43,18 @@ def slug(s):
 def icon(cat):
     return f'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">{ICON.get(cat, ICON["filtro"])}</svg>'
 
+# PROVISÓRIO (Mesa Loja ainda vai fechar a regra final): preço = custo da Real Motopeças x fator, arredondado para cima no ,90
+MARGEM = [(30, 1.8), (100, 1.6), (250, 1.45), (float("inf"), 1.3)]
+CAT_COMPARADA = {"oleo": 1.4}  # itens muito comparados
+
+def preco_de_custo(custo, categoria):
+    import math
+    f = CAT_COMPARADA.get(categoria) or next(m for lim, m in MARGEM if custo <= lim)
+    x = custo * f
+    n = math.floor(x)
+    p = n + 0.90 if x <= n + 0.90 else n + 1.90
+    return max(round(p, 2), 9.90)
+
 def carregar():
     ps = []
     for r in csv.DictReader(open(RAIZ / "dados/produtos.csv", encoding="utf-8")):
@@ -51,7 +63,7 @@ def carregar():
         veic = [v.strip() for v in r["veiculos"].split(";") if v.strip()]
         p = dict(sku=r["sku"].strip(), nome=r["nome"].strip(), tipo=r["tipo"].strip(), categoria=r["categoria"].strip(),
                  marca=r["marca"].strip(), veiculos=veic, modelos=sorted({re.sub(r"\s*\(.*?\)", "", v) for v in veic}),
-                 preco=float(r["preco"]), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
+                 preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip()), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
                  descricao=r["descricao"].strip())
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
