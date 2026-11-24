@@ -23,7 +23,7 @@ GRATIS = CFG.get("frete_gratis_acima") or 0
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
-        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes"}
+        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes", "kit": "Kits prontos"}
 TIPOS = {"moto": "Moto", "carro": "Carro"}
 ICON = {
  "transmissao": '<circle cx="20" cy="32" r="12"/><circle cx="20" cy="32" r="3"/><circle cx="48" cy="32" r="7"/><path d="M20 20 48 25M20 44l28-5"/>',
@@ -35,6 +35,7 @@ ICON = {
  "oleo": '<path d="M22 14h14l8 8v30H18V18z"/><path d="M36 14v8h8M26 34c0 4 3 6 5 6s5-2 5-6c0-3-5-9-5-9s-5 6-5 9z"/>',
  "cabo": '<path d="M10 50c10 0 10-14 22-14s12-20 22-20"/><rect x="6" y="46" width="8" height="8"/><rect x="50" y="10" width="8" height="8"/>',
  "palheta": '<path d="M8 48 52 14"/><path d="M14 52 56 20" stroke-width="5"/><circle cx="8" cy="48" r="4"/>',
+ "kit": '<rect x="10" y="22" width="44" height="30" rx="3"/><path d="M24 22v-8h16v8M10 34h44"/>',
  "acessorio": '<ellipse cx="38" cy="22" rx="16" ry="11"/><path d="M28 30 12 54"/>',
 }
 FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">'
@@ -56,6 +57,7 @@ MARGEM = [(30, 1.8), (100, 1.6), (250, 1.45), (float("inf"), 1.3)]
 ISCA = 1.30
 ISCA_PALAVRAS = ["oleo", "camara", "vela", "pastilha", "relacao cg 160", "kit relacao cg", "kit transmissao cg"]
 MARGEM_MIN = 0.20
+LUCRO_MIN_CARRINHO = 8.0  # peça com lucro menor só vai junto com outra (ou carrinho >= frete grátis)
 
 def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
@@ -92,6 +94,8 @@ def carregar():
                  marca=r["marca"].strip(), veiculos=veic, modelos=sorted({re.sub(r"\s*\(.*?\)", "", v) for v in veic}),
                  preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip(), r["nome"], float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
                  descricao=r["descricao"].strip())
+        custo = float(r["custo"]) if (r.get("custo") or "").strip() else None
+        p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < LUCRO_MIN_CARRINHO)
         if p["preco"] is None:
             continue
         p["slug"] = slug(p["nome"] + " " + p["sku"])
@@ -136,6 +140,11 @@ def rodape(artifact=False):
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
 <script src="assets/loja.js"></script><script src="assets/app.js"></script>{tail}'''
 
+def selo(p):
+    if GRATIS and p["preco"] < 20:
+        return f'<div class="stock">Compre junto e ganhe frete grátis</div>'
+    return ""
+
 def card(p):
     img = f'<img src="{e(p["imagem"])}" alt="{e(p["nome"])}" loading="lazy">' if p["imagem"] else icon(p["categoria"])
     fit = ", ".join(p["modelos"][:3]) + ("…" if len(p["modelos"]) > 3 else "")
@@ -143,7 +152,7 @@ def card(p):
     return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1"><span class="tag">{TIPOS[p["tipo"]]} · {CATS[p["categoria"]]}</span>{img}</a>
 <div class="body"><h3><a href="{p["url"]}">{e(p["nome"])}</a></h3><div class="fit">Serve: {e(fit)}</div>
 <div class="sku">{e(p["marca"])} · {e(p["sku"])}</div><div class="stock{' low' if low else ''}">{'Últimas %d unidades' % p['estoque'] if low else 'Em estoque'}</div>
-<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
+{selo(p)}<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
 <button class="add" type="button" data-add="{e(p["sku"])}">Adicionar</button></div></div></article>'''
 
 def tabela_frete():
@@ -231,6 +240,7 @@ def produto(p):
 <div class="buy"><span class="eyebrow">{e(p["marca"])} · cód. {e(p["sku"])}</span><h1>{e(p["nome"])}</h1>
 <div><div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix</div></div>
 <div class="stock{' low' if p['estoque']<=3 else ''}">{'Últimas %d unidades' % p['estoque'] if p['estoque']<=3 else 'Em estoque, pronta para entrega'}</div>
+{selo(p)}{'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
 <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button><a class="btn ghost" href="carrinho.html">Ir para o carrinho</a></div>
 <div class="ship"><label class="lbl" for="shipcity">Calcular entrega</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
 <a class="btn wa" href="{wa}" target="_blank" rel="noopener">Perguntar se serve no meu veículo</a>
@@ -350,7 +360,7 @@ def extras(ps):
 <g:google_product_category>{"Vehicles &amp; Parts &gt; Vehicle Parts &amp; Accessories &gt; Motor Vehicle Parts"}</g:google_product_category></item>
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
-    pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url")} for p in ps]
+    pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "cidades")}
     cfg["frete_gratis_acima"] = GRATIS
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")

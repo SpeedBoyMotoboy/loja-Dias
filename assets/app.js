@@ -104,6 +104,7 @@
       $("#addrbox").hidden = !ent; $("#citybox").hidden = !ent;
       let err = "";
       if(!t.items.length) err = "Adicione pelo menos uma peça.";
+      else if(t.items.every(i=>i.p.addon) && t.sub < (C.frete_gratis_acima||0)) err = `Essas são peças de complemento. Junte com outra peça ou complete ${brl(C.frete_gratis_acima)}.`;
       else if(ent && !t.city) err = "Escolha a cidade para calcular a entrega.";
       else if(ent && !$("#addr").value.trim()) err = "Informe o endereço de entrega.";
       else if(!$("#name").value.trim()) err = "Informe seu nome.";

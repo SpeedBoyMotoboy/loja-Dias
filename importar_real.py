@@ -11,7 +11,15 @@ RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
 from build import preco_de_custo, eh_isca  # mesma regra de margem do site
 ESTOQUE_MIN = 3   # mínimo na Real para a peça entrar no site
-LUCRO_MIN = 8.0   # lucro mínimo por peça, em R$ (frete é cobrado à parte)
+# Kits (Mesa 24/11): só entram se todas as peças estão no site. Preço = soma das peças com 5% off.
+KITS = [
+    ("KIT-FREIO-CG", "Kit Freio CG 150/160: pastilha dianteira Cobreq + fluido de freio DOT3 TRW", "freio", ["N949MO", "RCLF00021"],
+     "HONDA CG 160 FAN 2015-2026 CG 150 FAN 2010-2015 CG 150 TITAN 2009-2015"),
+    ("KIT-IGNICAO-CG", "Kit Ignição e Ar CG 150/160: vela NGK + filtro de ar Wega + lâmpada H4", "ignicao", ["CPR8EA9", "JFA0M72", "90208030"],
+     "HONDA CG 160 FAN 2019-2026 CG 160 TITAN 2019-2026 CG 150 FAN 2014-2026"),
+    ("KIT-MANETES-BROS", "Kit Manetes reserva Bros 150 / XRE 300: manete de freio + manete de embreagem", "acessorio", ["001497", "001499"],
+     "HONDA NXR 150 BROS 2006-2015 XRE 300 2009-2026"),
+]
 
 def norm(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
@@ -89,10 +97,11 @@ def main():
         if not cat:
             continue
         pv = preco_de_custo(custo, cat, nome)
-        if pv is None or (not eh_isca(nome) and pv - custo < LUCRO_MIN):  # lucro pequeno (iscas podem)
+        if pv is None:
             continue
         veic = col(r, "aplicacao", "veiculos", "aplicacao/veiculos")
-        tipo = "carro" if any(w in norm(nome + " " + veic) + " " for w in CARRO) or "carro" in norm(col(r, "categoria")) else "moto"
+        cr = norm(col(r, "categoria"))
+        tipo = "carro" if cr.startswith("carro") else "moto" if cr.startswith("moto") else "carro" if any(w in norm(nome + " " + veic) + " " for w in CARRO) or "carro" in norm(col(r, "categoria")) else "moto"
         vistos.add(sku)
         saida.append({"sku": sku, "nome": nome[:90], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
                       "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",
@@ -100,6 +109,23 @@ def main():
                       "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
         if len(saida) >= mx:
             break
+    from build import _noventa
+    por = {s["sku"]: s for s in saida}
+    kits = []
+    for ksku, knome, kcat, partes, apl in KITS:
+        if not all(p in por for p in partes):
+            print("kit fora (peça ausente):", ksku)
+            continue
+        custo = sum(float(por[p]["custo"]) for p in partes)
+        soma = sum(preco_de_custo(float(por[p]["custo"]), por[p]["categoria"], por[p]["nome"]) for p in partes)
+        preco = _noventa(soma * 0.95 - 1)
+        if preco - custo < 8:
+            preco = _noventa(custo + 8)
+        kits.append({"sku": ksku, "nome": knome, "tipo": "moto", "categoria": "kit", "marca": "Loja Dias",
+                     "veiculos": ";".join(modelos(apl)), "preco": f"{preco:.2f}", "custo": f"{custo:.2f}",
+                     "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "",
+                     "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
+    saida = kits + saida
     campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "estoque", "imagem", "descricao"]
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=campos)
