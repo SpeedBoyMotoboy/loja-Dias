@@ -11,6 +11,20 @@
   const count = () => Object.values(cart).reduce((a,b)=>a+b,0);
   const badge = () => $$(".cartcount").forEach(b=>b.textContent=count());
 
+
+  // Pix copia e cola (BR Code estático, padrão do Banco Central) com valor fixo
+  const tlv = (id,v) => id + String(v.length).padStart(2,"0") + v;
+  const clean = (s,n) => s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9 ]/g,"").toUpperCase().slice(0,n);
+  const crc16 = s => { let c=0xFFFF; for(const ch of s){ c^=ch.charCodeAt(0)<<8; for(let i=0;i<8;i++) c = (c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF; } return c.toString(16).toUpperCase().padStart(4,"0"); };
+  const pixCode = (valor, txid) => {
+    const p = C.pix;
+    const s = tlv("00","01") + tlv("26", tlv("00","br.gov.bcb.pix") + tlv("01",p.chave))
+      + tlv("52","0000") + tlv("53","986") + tlv("54",valor.toFixed(2)) + tlv("58","BR")
+      + tlv("59",clean(p.nome,25)) + tlv("60",clean(p.cidade,15)) + tlv("62", tlv("05",txid)) + "6304";
+    return s + crc16(s);
+  };
+  window.pixCode = pixCode;
+
   // botões "Adicionar"
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-add]"); if(!b) return;
@@ -66,7 +80,7 @@
     const totals = () => {
       const items = Object.entries(cart).map(([s,q])=>({p:P.find(p=>p.sku===s),q})).filter(i=>i.p);
       const sub = items.reduce((a,i)=>a+i.p.preco*i.q,0);
-      const pix = $('input[name="pay"]:checked').value==="pix";
+      const pix = true;
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
       const frete = ship==="retirada"?0:(city?city[ship]:null);
@@ -93,15 +107,21 @@
       else if(!$("#name").value.trim()) err = "Informe seu nome.";
       $("#err").hidden = !err; $("#err").textContent = err;
       const send = $("#send"); send.setAttribute("aria-disabled", !!err);
+      $("#pixbox").hidden = !!err;
       if(err){ send.href = "#"; return; }
-      const msg = [`*Pedido Loja Dias*`, `Cliente: ${$("#name").value.trim()}`,
+      const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8);
+      $("#pixcode").value = pixCode(t.total, txid);
+      const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
-        `Pagamento: ${t.pix?"Pix":"Cartão na entrega"}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
+        `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
     };
+    $("#pixcopy").addEventListener("click", async e=>{ const ta=$("#pixcode");
+      try{ await navigator.clipboard.writeText(ta.value); e.target.textContent="Copiado ✓"; }catch(_){ ta.select(); e.target.textContent="Selecione e copie"; }
+      setTimeout(()=>e.target.textContent="Copiar código Pix",1500); });
     lines.addEventListener("click", e=>{ const d=e.target.dataset;
       if(d.inc) cart[d.inc]++; else if(d.dec){ cart[d.dec]--; if(cart[d.dec]<=0) delete cart[d.dec]; } else return;
       save(); refresh(); });

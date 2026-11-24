@@ -7,7 +7,7 @@
   "endereco": "Endereço para retirada a definir",
   "cidade_base": "Vila Velha",
   "horario": "Seg a Sáb, 8h às 18h",
-  "desconto_pix": 0.05,
+  "desconto_pix": 0,
   "corte_mesmo_dia": "12h",
   "fretes_EXEMPLO": "valores de exemplo, ajustar com a tabela dos motoboys",
   "cidades": [
@@ -37,5 +37,11 @@
       "normal": 15
     }
   ],
-  "fornecedor_principal": "Real Motopeças (ES)"
+  "fornecedor_principal": "Real Motopeças (ES)",
+  "pix": {
+    "chave": "CHAVE-PIX-EXEMPLO",
+    "nome": "SPEEDBOY MOTOBOY",
+    "cidade": "VILA VELHA",
+    "_obs": "EXEMPLO: trocar pela chave Pix real da SpeedBoy (CNPJ)"
+  }
 }
