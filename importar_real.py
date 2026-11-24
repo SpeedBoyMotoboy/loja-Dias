@@ -8,6 +8,10 @@ import csv, re, sys, unicodedata
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
+sys.path.insert(0, str(RAIZ))
+from build import preco_de_custo  # mesma regra de margem do site
+ESTOQUE_MIN = 3   # mínimo na Real para a peça entrar no site
+LUCRO_MIN = 8.0   # lucro mínimo por peça, em R$ (frete é cobrado à parte)
 
 def norm(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
@@ -61,8 +65,12 @@ def main():
             continue
         if est and norm(est) in ("0", "indisponivel", "sem estoque", "esgotado", "false", "nao"):
             continue
+        if est.isdigit() and int(est) < ESTOQUE_MIN:  # estoque baixo na Real: risco de faltar
+            continue
         cat = categoria(nome + " " + col(r, "categoria"))
         if not cat:
+            continue
+        if preco_de_custo(custo, cat) - custo < LUCRO_MIN:  # lucro pequeno demais por peça
             continue
         veic = col(r, "aplicacao", "veiculos", "aplicacao/veiculos")
         tipo = "carro" if any(w in norm(nome + " " + veic) + " " for w in CARRO) or "carro" in norm(col(r, "categoria")) else "moto"
