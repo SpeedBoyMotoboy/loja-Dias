@@ -8,15 +8,34 @@
   "cidade_base": "Vila Velha",
   "horario": "Seg a Sáb, 8h às 18h",
   "desconto_pix": 0.05,
-  "corte_mesmo_dia": "15h",
+  "corte_mesmo_dia": "12h",
   "fretes_EXEMPLO": "valores de exemplo, ajustar com a tabela dos motoboys",
   "cidades": [
-    {"nome": "Vitória", "slug": "vitoria", "normal": 9, "urgente": 18, "prazo_urgente": "até 1h"},
-    {"nome": "Vila Velha", "slug": "vila-velha", "normal": 10, "urgente": 20, "prazo_urgente": "até 1h"},
-    {"nome": "Serra", "slug": "serra", "normal": 12, "urgente": 24, "prazo_urgente": "até 1h30"},
-    {"nome": "Cariacica", "slug": "cariacica", "normal": 12, "urgente": 24, "prazo_urgente": "até 1h30"},
-    {"nome": "Viana", "slug": "viana", "normal": 15, "urgente": 30, "prazo_urgente": "até 2h"},
-    {"nome": "Guarapari", "slug": "guarapari", "normal": 25, "urgente": 45, "prazo_urgente": "até 2h30"},
-    {"nome": "Fundão", "slug": "fundao", "normal": 25, "urgente": 45, "prazo_urgente": "até 2h30"}
-  ]
+    {
+      "nome": "Vitória",
+      "slug": "vitoria",
+      "normal": 9
+    },
+    {
+      "nome": "Vila Velha",
+      "slug": "vila-velha",
+      "normal": 10
+    },
+    {
+      "nome": "Serra",
+      "slug": "serra",
+      "normal": 12
+    },
+    {
+      "nome": "Cariacica",
+      "slug": "cariacica",
+      "normal": 12
+    },
+    {
+      "nome": "Viana",
+      "slug": "viana",
+      "normal": 15
+    }
+  ],
+  "fornecedor_principal": "Real Motopeças (ES)"
 }

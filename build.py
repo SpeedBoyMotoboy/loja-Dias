@@ -102,11 +102,11 @@ def card(p):
 <button class="add" type="button" data-add="{e(p["sku"])}">Adicionar</button></div></div></article>'''
 
 def tabela_frete():
-    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>{brl(c["urgente"])}</td><td>{e(c["prazo_urgente"])}</td></tr>' for c in CFG["cidades"])
-    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Normal (hoje)</th><th>Urgente</th><th>Prazo urgente</th></tr></thead><tbody>{rows}</tbody></table></div>'
+    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
+    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>'
 
 FAQ = [
- ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Na entrega urgente o motoboy sai assim que a peça é separada."),
+ ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Cada peça mostra os modelos e anos compatíveis. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
  ("Quais formas de pagamento?", f"Pix com {int(CFG['desconto_pix']*100)}% de desconto nas peças ou cartão na maquininha do motoboy, na entrega."),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
@@ -133,9 +133,9 @@ def home(ps, artifact=False):
     corpo = f'''<div class="hero"><div class="wrap">
 <span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
 <h1>Peça de moto e carro na sua porta, hoje</h1>
-<p>Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão. Urgente em até 1h na capital. Pix com {int(CFG["desconto_pix"]*100)}% de desconto.</p>
+<p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pix com {int(CFG["desconto_pix"]*100)}% de desconto.</p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de óleo Onix" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span><span class="chip u"><i></i>Urgente em até 1h</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span><span class="chip"><i></i>Cartão na entrega</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
 <a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>
@@ -147,13 +147,13 @@ def home(ps, artifact=False):
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Escolha a peça</b><span>Busque pelo nome ou pelo modelo do seu veículo. Na dúvida, mande foto no WhatsApp.</span></li>
 <li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. Pague no Pix ou no cartão na entrega.</span></li>
-<li><b>Receba com o motoboy</b><span>Entrega normal no mesmo dia ou urgente. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
+<li><b>Receba com o motoboy</b><span>Entrega no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
 <section><div class="wrap"><h2>Frete por cidade</h2>{tabela_frete()}</div></section>
 <section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
     faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]}
     pagina("_artifact_index.html" if artifact else "index.html",
            "Loja Dias Peças | Peças de moto e carro com entrega na Grande Vitória",
-           "Peças de moto e carro com entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e região. Urgente em até 1h. Pix com desconto.",
+           "Peças de moto e carro com entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pix com desconto.",
            corpo, [loja_ld(), faq_ld], artifact)
 
 def catalogo(ps):
@@ -205,31 +205,30 @@ def cidade(c, ps):
     mais = [p for p in ps if p["estoque"] > 3][:8]
     corpo = f'''<div class="hero"><div class="wrap"><span class="eyebrow" style="color:var(--road-muted)">Entrega em {e(c["nome"])}, ES</span>
 <h1>Peças de moto e carro em {e(c["nome"])} com entrega por motoboy</h1>
-<p>Entrega normal por {brl(c["normal"])}, no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Urgente por {brl(c["urgente"])}, {e(c["prazo_urgente"])}. Pague no Pix com desconto ou no cartão na entrega.</p>
+<p>Entrega por {brl(c["normal"])}, no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Pague no Pix com desconto ou no cartão na entrega.</p>
 <div><a class="btn" href="catalogo.html">Ver peças</a></div></div></div>
 <section><div class="wrap"><h2>Peças prontas para entregar em {e(c["nome"])}</h2><div class="grid">{"".join(card(p) for p in mais)}</div></div></section>
 <section><div class="wrap prose"><h2>Como é a entrega em {e(c["nome"])}</h2>
-<p>A peça sai separada e conferida com a rede de motoboys da Loja Dias. Você recebe o aviso no WhatsApp quando o motoboy sai e quando ele está chegando. Para oficinas de {e(c["nome"])}, a entrega urgente leva a peça direto para a bancada.</p>
+<p>A peça sai separada e conferida com a rede de motoboys da Loja Dias. Você recebe o aviso no WhatsApp quando o motoboy sai e quando ele está chegando. Para oficinas de {e(c["nome"])}, a peça vai direto para a bancada.</p>
 {tabela_frete()}</div></section>'''
     ld = [dict(loja_ld(), areaServed={"@type": "City", "name": c["nome"]})]
     pagina(f"entrega-{c['slug']}.html", f"Peças de moto e carro em {c['nome']} | Entrega hoje | Loja Dias",
-           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Frete {brl(c['normal'])}, urgente {e(c['prazo_urgente'])}. Pix com desconto.",
+           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Frete {brl(c['normal'])}, entrega no mesmo dia. Pix com desconto.",
            corpo, ld)
 
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
-<p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam no mesmo dia. Na entrega urgente o motoboy sai assim que a peça é separada.</p>
+<p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam no mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
 {tabela_frete()}
 <h2 style="margin-top:28px">Peças grandes</h2><p>Peças que não cabem no baú da moto, como escapamento, para-choque e par de amortecedores, são combinadas pelo WhatsApp para retirada ou frete de carro.</p></div></section>'''
     pagina("entrega.html", "Entrega e fretes na Grande Vitória | Loja Dias Peças",
-           "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão.", corpo)
+           "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.", corpo)
 
 def carrinho():
     corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div class="tot" id="tot"></div></div>
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
-<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy normal<small>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</small></span><em id="feeN">—</em></label>
-<label class="opt"><input type="radio" name="ship" id="shipU" value="urgente"><span>Motoboy urgente<small>Sai assim que a peça é separada</small></span><em id="feeU">—</em></label>
+<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</small></span><em id="feeN">—</em></label>
 <label class="opt"><input type="radio" name="ship" id="shipR" value="retirada"><span>Retirar<small>Combinar pelo WhatsApp</small></span><em>R$ 0,00</em></label></fieldset>
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>

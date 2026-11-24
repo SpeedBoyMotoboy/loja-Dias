@@ -55,7 +55,7 @@
   if(shipSel){
     const out = $("#shipout");
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
-      out.innerHTML = c ? `Normal: <b>${brl(c.normal)}</b>, chega hoje se pedir até ${C.corte_mesmo_dia}.<br>Urgente: <b>${brl(c.urgente)}</b>, ${c.prazo_urgente}.` : "Escolha a cidade para ver o frete."; };
+      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
   }
 
@@ -80,7 +80,6 @@
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
       $("#feeN").textContent = t.city?brl(t.city.normal):"escolha a cidade";
-      $("#feeU").textContent = t.city?brl(t.city.urgente)+" · "+t.city.prazo_urgente:"escolha a cidade";
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
         + `<span>Entrega</span><span>${t.frete===null?"—":brl(t.frete)}</span>`
@@ -98,7 +97,7 @@
       const msg = [`*Pedido Loja Dias*`, `Cliente: ${$("#name").value.trim()}`,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
-        `Entrega: ${ent?"motoboy "+t.ship+" para "+t.city.nome:"retirada"} = ${brl(t.frete||0)}`,
+        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         `Pagamento: ${t.pix?"Pix":"Cartão na entrega"}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
