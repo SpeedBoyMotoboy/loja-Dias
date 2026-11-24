@@ -42,8 +42,26 @@ CATS = [  # (categoria, palavras)
     ("cabo", ["cabo "]),
     ("pneu", ["pneu", "camara"]),
     ("palheta", ["palheta"]),
+    ("acessorio", ["retrovisor", "manete", "pedaleira"]),
 ]
 CARRO = ["onix", "hb20", "gol", "palio", "uno", "argo", "strada", "kwid", "corolla", "celta", "prisma", "fiesta", "ka ", "sandero", "civic", "fox", "polo", "saveiro"]
+
+MARCAS = r"^(HONDA|YAMAHA|SUZUKI|DAFRA|KASINSKI|SHINERAY|FIAT|VOLKSWAGEN|CHEVROLET|FORD|RENAULT|HYUNDAI|TOYOTA|NISSAN|PEUGEOT|CITROEN|JEEP)\s+"
+
+# imagem fica vazia: sem hotlink do fornecedor (decisão da Mesa); foto baixada vira img/<sku>.webp
+def modelos(apl):
+    """'HONDA CG 150 TITAN 2004-2026 CG 150 FAN 2009-2026' -> ['CG 150 TITAN 2004-2026', 'CG 150 FAN 2009-2026']"""
+    if "UNIVERSAL" in apl.upper():
+        return ["Universal (serve na maioria das motos)"]
+    ms = re.findall(r"(.+?\s(?:19|20)\d{2}-(?:(?:19|20)\d{2})?)(?=\s|$)", apl.strip())
+    out = []
+    for m in ms or [apl]:
+        m = m.strip()
+        while re.match(MARCAS, m):
+            m = re.sub(MARCAS, "", m)
+        if m and m not in out:
+            out.append(m)
+    return out
 
 def categoria(txt):
     t = norm(txt) + " "
@@ -77,9 +95,9 @@ def main():
         tipo = "carro" if any(w in norm(nome + " " + veic) + " " for w in CARRO) or "carro" in norm(col(r, "categoria")) else "moto"
         vistos.add(sku)
         saida.append({"sku": sku, "nome": nome[:90], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
-                      "veiculos": ";".join(v.strip() for v in re.split(r"[;/|]", veic) if v.strip())[:300] or "Consultar aplicação no WhatsApp",
+                      "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",
                       "preco": "", "custo": f"{custo:.2f}", "estoque": 10 if not est or not est.isdigit() else est,
-                      "imagem": col(r, "url_imagem", "imagem"), "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
+                      "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
         if len(saida) >= mx:
             break
     campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "estoque", "imagem", "descricao"]

@@ -19,10 +19,11 @@ EXEMPLO = os.environ.get("LOJA_EXEMPLO") == "1"  # usa dados/produtos_exemplo.cs
 DEMO = EXEMPLO
 VITRINE = False  # definido em main(): sem peças reais, o site vira vitrine com pedido pelo WhatsApp
 FRETE_OK = CFG.get("fretes_confirmados", False)
+GRATIS = CFG.get("frete_gratis_acima") or 0
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
-        "pneu": "Pneus e câmaras", "palheta": "Palhetas"}
+        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes"}
 TIPOS = {"moto": "Moto", "carro": "Carro"}
 ICON = {
  "transmissao": '<circle cx="20" cy="32" r="12"/><circle cx="20" cy="32" r="3"/><circle cx="48" cy="32" r="7"/><path d="M20 20 48 25M20 44l28-5"/>',
@@ -34,6 +35,7 @@ ICON = {
  "oleo": '<path d="M22 14h14l8 8v30H18V18z"/><path d="M36 14v8h8M26 34c0 4 3 6 5 6s5-2 5-6c0-3-5-9-5-9s-5 6-5 9z"/>',
  "cabo": '<path d="M10 50c10 0 10-14 22-14s12-20 22-20"/><rect x="6" y="46" width="8" height="8"/><rect x="50" y="10" width="8" height="8"/>',
  "palheta": '<path d="M8 48 52 14"/><path d="M14 52 56 20" stroke-width="5"/><circle cx="8" cy="48" r="4"/>',
+ "acessorio": '<ellipse cx="38" cy="22" rx="16" ry="11"/><path d="M28 30 12 54"/>',
 }
 FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">'
 
@@ -60,6 +62,8 @@ def _n(s):
 
 def eh_isca(nome):
     t = _n(nome)
+    if "filtro" in t or "fluido" in t:  # filtro de óleo e fluido de freio não são isca
+        return False
     return any(w in t for w in ISCA_PALAVRAS)
 
 def _noventa(x):
@@ -110,7 +114,8 @@ def head(title, desc, path, extra_ld=None, artifact=False):
 
 def topo():
     demo = '<div class="demo">Prévia: peças, preços e fretes são exemplos. O catálogo real virá das distribuidoras.</div>' if DEMO else ""
-    return f'''{demo}<header class="top"><div class="wrap">
+    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)}</div>' if GRATIS and FRETE_OK else ""
+    return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Moto</a><a href="{lk("carro")}">Carro</a>
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>
@@ -146,11 +151,12 @@ def tabela_frete():
         rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
         return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Prazo</th><th>Frete</th></tr></thead><tbody>{rows}</tbody></table></div>'
     rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
-    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>'
+    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> em pedidos a partir de {brl(GRATIS)}.</p>' if GRATIS else "")
 
 FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
+ ("Tem frete grátis?", f"Sim. Pedidos a partir de {brl(GRATIS)} têm frete grátis em toda a Grande Vitória." if GRATIS else "Não no momento."),
  ("Quais formas de pagamento?", "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido."),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
  ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
@@ -180,7 +186,7 @@ def home(ps, artifact=False):
 <h1>Peça de moto e carro na sua porta, hoje</h1>
 <p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de óleo Onix" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span><span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
 <a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>
@@ -252,7 +258,7 @@ def home_vitrine(artifact=False):
 <h1>Peça de moto e carro na sua porta, hoje</h1>
 <p>Diga a peça e o modelo do veículo. A gente confere, manda o valor e entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
 <div style="display:flex;flex-wrap:wrap;gap:8px"><a class="btn" href="pedido.html">Fazer pedido</a></div>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span><span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
 <a class="door" href="pedido.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus, óleo, filtros e elétrica para CG, Biz, Pop, Bros, Factor, Fazer, NMax e mais.</span></a>
@@ -318,7 +324,7 @@ def carrinho():
     corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div class="tot" id="tot"></div></div>
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
-<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</small></span><em id="feeN">—</em></label>
+<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]} chega hoje{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
 <label class="opt"><input type="radio" name="ship" id="shipR" value="retirada"><span>Retirar<small>Combinar pelo WhatsApp</small></span><em>R$ 0,00</em></label></fieldset>
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
@@ -346,6 +352,7 @@ def extras(ps):
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
     pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url")} for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "cidades")}
+    cfg["frete_gratis_acima"] = GRATIS
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")
 
 def main():

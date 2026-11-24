@@ -69,7 +69,7 @@
   if(shipSel){
     const out = $("#shipout");
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
-      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
+      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${C.frete_gratis_acima?` (grátis a partir de ${brl(C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
   }
 
@@ -83,9 +83,10 @@
       const pix = true;
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
-      const frete = ship==="retirada"?0:(city?city[ship]:null);
+      const gratis = C.frete_gratis_acima && sub>=C.frete_gratis_acima;
+      const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
-      return {items,sub,desc,frete,ship,city,pix,total:sub-desc+(frete||0)};
+      return {items,sub,desc,frete,ship,city,pix,gratis,total:sub-desc+(frete||0)};
     };
     const refresh = () => {
       const t = totals(); badge();
@@ -93,10 +94,11 @@
         <div class="line"><a href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}</b>
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
-      $("#feeN").textContent = t.city?brl(t.city.normal):"escolha a cidade";
+      $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
-        + `<span>Entrega</span><span>${t.frete===null?"—":brl(t.frete)}</span>`
+        + `<span>Entrega</span><span>${t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
+        + (C.frete_gratis_acima&&!t.gratis&&t.items.length?`<span class="note" style="grid-column:1/-1">Faltam ${brl(C.frete_gratis_acima-t.sub)} para frete grátis.</span>`:"")
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
       $("#addrbox").hidden = !ent; $("#citybox").hidden = !ent;
@@ -114,7 +116,7 @@
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
-        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${brl(t.frete||0)}`,
+        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;

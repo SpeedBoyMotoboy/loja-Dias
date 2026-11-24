@@ -43,5 +43,6 @@
     "cidade": "SERRA"
   },
   "fretes_confirmados": true,
-  "cnpj": "46.178.859/0001-96"
+  "cnpj": "46.178.859/0001-96",
+  "frete_gratis_acima": 49.9
 }
