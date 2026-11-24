@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Converte o CSV do robô da Real (real_catalogo_ultimo.csv) em dados/produtos.csv.
 
-Uso: python3 importar_real.py caminho/real_catalogo_ultimo.csv [--max 400]
+Uso: python3 importar_real.py caminho/real_catalogo_ultimo.csv [--max 100]
 Preço de venda = regra de margem do build.py (coluna custo). Só entra peça com custo > 0 e em estoque.
 """
 import csv, re, sys, unicodedata
@@ -54,7 +54,7 @@ def categoria(txt):
 
 def main():
     src = Path(sys.argv[1])
-    mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 400
+    mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 100
     saida, vistos = [], set()
     for r in csv.DictReader(open(src, encoding="utf-8-sig")):
         sku = col(r, "codigo", "sku", "cod")
