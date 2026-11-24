@@ -103,7 +103,7 @@ def rodape(artifact=False):
     wa = f'https://wa.me/{CFG["whatsapp"]}?text={xesc("Olá! Quero saber de uma peça.").replace(" ", "%20")}'
     tail = "" if artifact else "</body></html>"
     return f'''<footer><div class="wrap">
-<div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}</div>
+<div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
 <div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a></div>
 </div></footer>
@@ -140,7 +140,7 @@ def faq_html():
 
 def loja_ld():
     return {"@context": "https://schema.org", "@type": "AutoPartsStore", "name": CFG["nome_loja"], "url": URL + "/",
-            "telephone": "+" + CFG["whatsapp"], "priceRange": "R$",
+            "telephone": "+" + CFG["whatsapp"], "taxID": CFG.get("cnpj", ""), "priceRange": "R$",
             "areaServed": [{"@type": "City", "name": c["nome"], "containedInPlace": {"@type": "State", "name": "Espírito Santo"}} for c in CFG["cidades"]],
             "paymentAccepted": "Pix", "openingHours": "Mo-Sa 08:00-18:00"}
 
