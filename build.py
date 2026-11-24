@@ -47,17 +47,36 @@ def slug(s):
 def icon(cat):
     return f'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">{ICON.get(cat, ICON["filtro"])}</svg>'
 
-# PROVISÓRIO (Mesa Loja ainda vai fechar a regra final): preço = custo da Real Motopeças x fator, arredondado para cima no ,90
+# Margem (Mesa Loja, Pauta 1, 24/11/2026): tabela base por faixa de custo; itens-isca entre x1,25 e x1,35;
+# teto = 10% acima do preço médio do Mercado Livre (coluna ml_medio, quando houver);
+# se depois do teto a margem ficar abaixo de 20% sobre o custo, a peça não entra no site.
 MARGEM = [(30, 1.8), (100, 1.6), (250, 1.45), (float("inf"), 1.3)]
-CAT_COMPARADA = {"oleo": 1.4}  # itens muito comparados
+ISCA = 1.30
+ISCA_PALAVRAS = ["oleo", "camara", "vela", "pastilha", "relacao cg 160", "kit relacao cg", "kit transmissao cg"]
+MARGEM_MIN = 0.20
 
-def preco_de_custo(custo, categoria):
+def _n(s):
+    return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
+
+def eh_isca(nome):
+    t = _n(nome)
+    return any(w in t for w in ISCA_PALAVRAS)
+
+def _noventa(x):
     import math
-    f = CAT_COMPARADA.get(categoria) or next(m for lim, m in MARGEM if custo <= lim)
-    x = custo * f
     n = math.floor(x)
-    p = n + 0.90 if x <= n + 0.90 else n + 1.90
-    return max(round(p, 2), 9.90)
+    return round(n + 0.90 if x <= n + 0.90 else n + 1.90, 2)
+
+def preco_de_custo(custo, categoria, nome="", ml_medio=None):
+    f = ISCA if eh_isca(nome) else next(m for lim, m in MARGEM if custo <= lim)
+    p = max(_noventa(custo * f), 9.90)
+    if ml_medio:
+        teto = ml_medio * 1.10
+        if p > teto:
+            p = _noventa(teto - 1) if _noventa(teto - 1) <= teto else round(teto, 2)
+    if p < custo * (1 + MARGEM_MIN):
+        return None
+    return p
 
 def carregar():
     ps = []
@@ -67,8 +86,10 @@ def carregar():
         veic = [v.strip() for v in r["veiculos"].split(";") if v.strip()]
         p = dict(sku=r["sku"].strip(), nome=r["nome"].strip(), tipo=r["tipo"].strip(), categoria=r["categoria"].strip(),
                  marca=r["marca"].strip(), veiculos=veic, modelos=sorted({re.sub(r"\s*\(.*?\)", "", v) for v in veic}),
-                 preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip()), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
+                 preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip(), r["nome"], float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
                  descricao=r["descricao"].strip())
+        if p["preco"] is None:
+            continue
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
         ps.append(p)
