@@ -1,15 +1,14 @@
 {
   "_obs": "Valores marcados EXEMPLO precisam ser confirmados pelo Luan antes de publicar.",
   "nome_loja": "Loja Dias Peças",
-  "site_url": "https://www.lojadiaspecas.com.br",
-  "whatsapp": "5527999999999",
-  "whatsapp_exibir": "(27) 99999-9999",
-  "endereco": "Endereço para retirada a definir",
-  "cidade_base": "Vila Velha",
+  "site_url": "https://speedboymotoboy.github.io/loja-Dias",
+  "whatsapp": "5527999165959",
+  "whatsapp_exibir": "(27) 99916-5959",
+  "endereco": "Serra, ES",
+  "cidade_base": "Serra",
   "horario": "Seg a Sáb, 8h às 18h",
   "desconto_pix": 0,
   "corte_mesmo_dia": "12h",
-  "fretes_EXEMPLO": "valores de exemplo, ajustar com a tabela dos motoboys",
   "cidades": [
     {
       "nome": "Vitória",
@@ -42,5 +41,6 @@
     "chave": "+5527999165959",
     "nome": "69 8 7 R A DA SILVA",
     "cidade": "SERRA"
-  }
+  },
+  "fretes_confirmados": false
 }

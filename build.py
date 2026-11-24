@@ -14,7 +14,11 @@ RAIZ = Path(__file__).resolve().parent
 DIST = RAIZ / "dist"
 CFG = json.loads((RAIZ / "dados/config.json").read_text(encoding="utf-8"))
 URL = CFG["site_url"].rstrip("/")
-DEMO = True  # mostra a faixa "prévia com peças de exemplo"; desligar quando o catálogo real entrar
+import os
+EXEMPLO = os.environ.get("LOJA_EXEMPLO") == "1"  # usa dados/produtos_exemplo.csv (só para prévia)
+DEMO = EXEMPLO
+VITRINE = False  # definido em main(): sem peças reais, o site vira vitrine com pedido pelo WhatsApp
+FRETE_OK = CFG.get("fretes_confirmados", False)
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
@@ -57,7 +61,7 @@ def preco_de_custo(custo, categoria):
 
 def carregar():
     ps = []
-    for r in csv.DictReader(open(RAIZ / "dados/produtos.csv", encoding="utf-8")):
+    for r in csv.DictReader(open(RAIZ / ("dados/produtos_exemplo.csv" if EXEMPLO else "dados/produtos.csv"), encoding="utf-8")):
         if not r["sku"].strip():
             continue
         veic = [v.strip() for v in r["veiculos"].split(";") if v.strip()]
@@ -87,9 +91,12 @@ def topo():
     demo = '<div class="demo">Prévia: peças, preços e fretes são exemplos. O catálogo real virá das distribuidoras.</div>' if DEMO else ""
     return f'''{demo}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
-<nav class="nav" aria-label="Principal"><a href="catalogo.html?tipo=moto">Moto</a><a href="catalogo.html?tipo=carro">Carro</a>
+<nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Moto</a><a href="{lk("carro")}">Carro</a>
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>
-<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a></nav></div></header>'''
+{'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>'''
+
+def lk(t):
+    return f"pedido.html?tipo={t}" if VITRINE else f"catalogo.html?tipo={t}"
 
 def rodape(artifact=False):
     cid = "".join(f'<a href="entrega-{c["slug"]}.html">Peças em {e(c["nome"])}</a>' for c in CFG["cidades"])
@@ -98,7 +105,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="catalogo.html?tipo=moto">Peças de moto</a><a href="catalogo.html?tipo=carro">Peças de carro</a><a href="carrinho.html">Carrinho</a><a href="entrega.html">Prazos e fretes</a></div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a></div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
 <script src="assets/loja.js"></script><script src="assets/app.js"></script>{tail}'''
@@ -114,15 +121,18 @@ def card(p):
 <button class="add" type="button" data-add="{e(p["sku"])}">Adicionar</button></div></div></article>'''
 
 def tabela_frete():
+    if not FRETE_OK:
+        rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
+        return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Prazo</th><th>Frete</th></tr></thead><tbody>{rows}</tbody></table></div>'
     rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
     return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>'
 
 FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
- ("Como sei se a peça serve na minha moto ou carro?", "Cada peça mostra os modelos e anos compatíveis. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
- ("Quais formas de pagamento?", "Por enquanto só Pix. No fim do pedido o site gera o Pix copia e cola com o valor exato."),
+ ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
+ ("Quais formas de pagamento?", "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido."),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
- ("Vocês têm peças que não estão no site?", "Provavelmente. Trabalhamos com várias distribuidoras. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
+ ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
 ]
 
 def faq_html():
@@ -140,6 +150,8 @@ def pagina(path, title, desc, corpo, ld=None, artifact=False):
     (DIST / path).write_text(out, encoding="utf-8")
 
 def home(ps, artifact=False):
+    if VITRINE:
+        return home_vitrine(artifact)
     destaque = [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     corpo = f'''<div class="hero"><div class="wrap">
@@ -213,19 +225,64 @@ def produto(p):
            f"{p['nome']} {p['marca']} por {brl(p['preco'])} no Pix. Serve em {', '.join(p['modelos'][:3])}. Entrega por motoboy hoje em Vitória, Vila Velha, Serra e Cariacica.",
            corpo, ld)
 
+def home_vitrine(artifact=False):
+    corpo = f'''<div class="hero"><div class="wrap">
+<span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
+<h1>Peça de moto e carro na sua porta, hoje</h1>
+<p>Diga a peça e o modelo do veículo. A gente confere, manda o valor e entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><a class="btn" href="pedido.html">Fazer pedido</a></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span><span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+</div></div>
+<section><div class="wrap split">
+<a class="door" href="pedido.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus, óleo, filtros e elétrica para CG, Biz, Pop, Bros, Factor, Fazer, NMax e mais.</span></a>
+<a class="door" href="pedido.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria, lâmpadas e correia para Onix, HB20, Gol, Argo, Strada e mais.</span></a>
+</div></section>
+<section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
+<li><b>Diga o que precisa</b><span>Peça, modelo e ano do veículo. Se tiver, mande foto da peça antiga.</span></li>
+<li><b>Receba o valor e o Pix</b><span>A gente confere na distribuidora e manda o preço com frete e o Pix copia e cola.</span></li>
+<li><b>Receba com o motoboy</b><span>Entrega no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Depois disso, no dia seguinte.</span></li></ol></div></section>
+<section><div class="wrap"><h2>Onde entregamos</h2>{tabela_frete()}</div></section>
+<section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
+    faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]}
+    pagina("_artifact_index.html" if artifact else "index.html",
+           "Loja Dias Peças | Peças de moto e carro com entrega na Grande Vitória",
+           "Peças de moto e carro com entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.",
+           corpo, [loja_ld(), faq_ld], artifact)
+
+def pedido():
+    opts = "".join(f'<option value="{e(c["nome"])}">{e(c["nome"])}</option>' for c in CFG["cidades"])
+    corpo = f'''<div class="wrap" style="padding-block:24px 40px;max-width:640px"><div class="panel">
+<h1 style="font-size:36px">Fazer pedido</h1>
+<p class="note">Preencha e toque no botão. A mensagem abre pronta no WhatsApp da loja. A gente responde com o valor, o frete e o Pix copia e cola.</p>
+<form id="pedidoform" style="display:grid;gap:12px">
+<fieldset><legend class="lbl">Peça para</legend>
+<label class="opt"><input type="radio" name="ptipo" id="ptMoto" value="moto" checked><span>Moto</span></label>
+<label class="opt"><input type="radio" name="ptipo" id="ptCarro" value="carro"><span>Carro</span></label></fieldset>
+<div class="field"><label class="lbl" for="pveic">Modelo e ano</label><input id="pveic" placeholder="Ex.: CG 160 Fan 2020, Onix 1.0 2018" required></div>
+<div class="field"><label class="lbl" for="ppeca">Peça</label><input id="ppeca" placeholder="Ex.: pastilha de freio dianteira, kit relação" required></div>
+<div class="field"><label class="lbl" for="pcid">Cidade</label><select id="pcid"><option value="">Escolha a cidade</option>{opts}</select></div>
+<div class="field"><label class="lbl" for="pbairro">Bairro</label><input id="pbairro" placeholder="Seu bairro"></div>
+<div class="field"><label class="lbl" for="pnome">Seu nome</label><input id="pnome" autocomplete="name" placeholder="Nome"></div>
+<p class="err" id="perr" hidden></p>
+<a class="btn wa" id="psend" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido no WhatsApp</a>
+<p class="note">WhatsApp da loja: {e(CFG["whatsapp_exibir"])}</p>
+</form></div></div>'''
+    pagina("pedido.html", "Fazer pedido | Loja Dias Peças",
+           "Peça de moto ou carro com entrega por motoboy no mesmo dia na Grande Vitória. Envie o pedido pelo WhatsApp.", corpo)
+
 def cidade(c, ps):
     mais = [p for p in ps if p["estoque"] > 3][:8]
     corpo = f'''<div class="hero"><div class="wrap"><span class="eyebrow" style="color:var(--road-muted)">Entrega em {e(c["nome"])}, ES</span>
 <h1>Peças de moto e carro em {e(c["nome"])} com entrega por motoboy</h1>
-<p>Entrega por {brl(c["normal"])}, no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Pagamento no Pix.</p>
-<div><a class="btn" href="catalogo.html">Ver peças</a></div></div></div>
-<section><div class="wrap"><h2>Peças prontas para entregar em {e(c["nome"])}</h2><div class="grid">{"".join(card(p) for p in mais)}</div></div></section>
+<p>Entrega {("por " + brl(c["normal"]) + ", ") if FRETE_OK else ""}no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Pagamento no Pix.</p>
+<div><a class="btn" href="{"pedido.html" if VITRINE else "catalogo.html"}">{"Fazer pedido" if VITRINE else "Ver peças"}</a></div></div></div>
+{"" if VITRINE else f'<section><div class="wrap"><h2>Peças prontas para entregar em {e(c["nome"])}</h2><div class="grid">{"".join(card(p) for p in mais)}</div></div></section>'}
 <section><div class="wrap prose"><h2>Como é a entrega em {e(c["nome"])}</h2>
 <p>A peça sai separada e conferida com a rede de motoboys da Loja Dias. Você recebe o aviso no WhatsApp quando o motoboy sai e quando ele está chegando. Para oficinas de {e(c["nome"])}, a peça vai direto para a bancada.</p>
 {tabela_frete()}</div></section>'''
     ld = [dict(loja_ld(), areaServed={"@type": "City", "name": c["nome"]})]
     pagina(f"entrega-{c['slug']}.html", f"Peças de moto e carro em {c['nome']} | Entrega hoje | Loja Dias",
-           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Frete {brl(c['normal'])}, entrega no mesmo dia. Pagamento no Pix.",
+           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Entrega no mesmo dia para pedidos até {CFG['corte_mesmo_dia']}. Pagamento no Pix.",
            corpo, ld)
 
 def entrega():
@@ -256,10 +313,10 @@ def carrinho():
 
 def extras(ps):
     hoje = date.today().isoformat()
-    urls = ["", "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
+    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
-    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
+    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
     itens = "".join(f'''<item><g:id>{xesc(p["sku"])}</g:id><g:title>{xesc(p["nome"])}</g:title><g:description>{xesc(p["descricao"])}</g:description>
 <g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{xesc(p['imagem'])}</g:image_link>" if p["imagem"] else ""}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
 <g:price>{p["preco"]:.2f} BRL</g:price><g:brand>{xesc(p["marca"])}</g:brand><g:mpn>{xesc(p["sku"])}</g:mpn><g:condition>new</g:condition>
@@ -276,8 +333,14 @@ def main():
     (DIST / "assets").mkdir(parents=True)
     for f in ("style.css", "app.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
+    global VITRINE
     ps = carregar()
-    home(ps); home(ps, artifact=True); catalogo(ps); entrega(); carrinho()
+    VITRINE = not ps
+    home(ps); home(ps, artifact=True); entrega()
+    if VITRINE:
+        pedido()
+    else:
+        catalogo(ps); carrinho()
     for p in ps: produto(p)
     for c in CFG["cidades"]: cidade(c, ps)
     extras(ps)

@@ -128,5 +128,23 @@
     $$(".cartpage input,.cartpage select").forEach(el=>el.addEventListener("input", refresh));
     refresh();
   }
+  // formulário de pedido (modo vitrine, sem catálogo)
+  const pf = $("#pedidoform");
+  if(pf){
+    const tp = new URLSearchParams(location.search).get("tipo");
+    if(tp==="carro") $("#ptCarro").checked = true;
+    const upd = () => {
+      const tipo = $('input[name="ptipo"]:checked').value, v=$("#pveic").value.trim(), pc=$("#ppeca").value.trim(),
+        cid=$("#pcid").value, b=$("#pbairro").value.trim(), n=$("#pnome").value.trim();
+      let err = !v ? "Informe o modelo e o ano." : !pc ? "Informe a peça." : !cid ? "Escolha a cidade." : !n ? "Informe seu nome." : "";
+      $("#perr").hidden = !err; $("#perr").textContent = err;
+      const s = $("#psend"); s.setAttribute("aria-disabled", !!err);
+      if(err){ s.href="#"; return; }
+      const msg = [`*Pedido Loja Dias*`, `Peça de ${tipo}: ${pc}`, `Veículo: ${v}`, `Entrega: ${cid}${b?" - "+b:""}`, `Nome: ${n}`].join("\n");
+      s.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
+    };
+    pf.addEventListener("input", upd); pf.addEventListener("submit", e=>e.preventDefault()); upd();
+  }
+
   badge();
 })();
