@@ -66,10 +66,41 @@ def _medida_mm(d):
     return None
 
 
+_FAB = None
+
+
+def _fabricante():
+    """dados/ficha_fabricante.csv: codigo,rotulo,valor,fonte_url — dado lido na página do próprio fabricante."""
+    global _FAB
+    if _FAB is None:
+        import csv, os
+        _FAB = {}
+        arq = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dados", "ficha_fabricante.csv")
+        if os.path.exists(arq):
+            for r in csv.DictReader(open(arq, encoding="utf-8")):
+                if r.get("codigo") and r.get("rotulo") and r.get("valor"):
+                    _FAB.setdefault(_n(r["codigo"]).replace(" ", ""), []).append((r["rotulo"].strip(), r["valor"].strip()))
+    return _FAB
+
+
 def linhas(p):
     """Lista de (rótulo, valor) para a ficha técnica. Só dado confirmado."""
     if p["categoria"] == "kit":
         return []
+    base = _linhas(p)
+    partes = [x.strip() for x in p["nome_real"].split(" - ")]
+    cod = partes[1] if len(partes) > 2 else p["sku"]
+    fab = _fabricante().get(_n(cod).replace(" ", "")) or _fabricante().get(_n(p["sku"]).replace(" ", "")) or []
+    if not fab:
+        return base
+    ja = {k for k, _ in base}
+    tem_medida = any(k.lower().startswith(("medida", "altura", "diâmetro", "diametro", "comprimento", "largura", "rosca", "alcance", "sextavado")) for k, _ in fab)
+    tem_mat = any(k.lower().startswith(("material", "eletrodo")) for k, _ in fab)
+    base = [(k, v) for k, v in base if not ((k == "Medidas" and tem_medida or k == "Material" and tem_mat) and v == NI)]
+    return base + [(k, v) for k, v in fab if k not in ja] + [("Fonte da medida", "Catálogo do fabricante")]
+
+
+def _linhas(p):
     partes = [x.strip() for x in p["nome_real"].split(" - ")]
     desc, cod = partes[0], (partes[1] if len(partes) > 2 else p["sku"])
     d = _n(desc)
