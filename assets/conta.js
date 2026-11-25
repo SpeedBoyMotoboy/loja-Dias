@@ -3,14 +3,16 @@
 // (regras em firestore.rules). Não guarda senha, cartão nem dado de pagamento.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, connectFirestoreEmulator, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config;
 const app = initializeApp(C.firebase);
-if (C.appcheck) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(C.appcheck), isTokenAutoRefreshEnabled: true });  // bloqueia robôs
+const EMU = ["localhost", "127.0.0.1"].includes(location.hostname);  // teste no computador: usa o simulador do Firebase
+if (C.appcheck && !EMU) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(C.appcheck), isTokenAutoRefreshEnabled: true });  // bloqueia robôs
 const TERMO = "v1";  // versão da página de privacidade aceita
 const auth = getAuth(app), db = getFirestore(app);
+if (EMU) { connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(db, "127.0.0.1", 8080); }
 const $ = s => document.querySelector(s);
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const txt = (s, n) => String(s || "").trim().slice(0, n);
@@ -67,7 +69,38 @@ async function apagarConta() {  // LGPD: apaga histórico, perfil e o login
   try { await deleteUser(user); }
   catch (e) { if (e.code === "auth/requires-recent-login") { await reauthenticateWithPopup(user, new GoogleAuthProvider()); await deleteUser(auth.currentUser); } else throw e; }
 }
-window.LojaConta = { salvarPedido, freteFidelidade, get user() { return user; }, get perfil() { return perfil; }, get pedidos() { return nPedidos; } };
+// Painel de pedidos (25/11): todo pedido do carrinho vai para vendas/{txid}, com ou sem login. Só a loja lê.
+// Se a internet cair na hora, fica guardado neste aparelho e tenta de novo na próxima página aberta.
+const PEND = "dias-venda-pendente";
+const lsG = () => { try { return JSON.parse(localStorage.getItem(PEND) || "null"); } catch (e) { return null; } };
+const lsS = v => { try { v ? localStorage.setItem(PEND, JSON.stringify(v)) : localStorage.removeItem(PEND); } catch (e) {} };
+const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+function montarVenda(pd) {
+  const v = {
+    txid: txt(pd.txid, 25), status: "novo", origem: "site", entrega: pd.cidade === "retirada" ? "retirada" : "motoboy",
+    pagamento: pd.pagamento === "entrega" ? "entrega" : "pix",
+    cliente: { nome: txt(pd.cliente && pd.cliente.nome, 80), telefone: txt(pd.cliente && pd.cliente.telefone, 20),
+      endereco: txt(pd.cliente && pd.cliente.endereco, 200), cidade: txt(pd.cidade, 30) },
+    itens: pd.itens.slice(0, 30).map(i => ({ sku: txt(i.sku, 40), nome: txt(i.nome, 90), qtd: Math.min(99, i.qtd | 0), preco: r2(i.preco) })),
+    sub: r2(pd.sub), frete: r2(pd.frete), desconto: r2(pd.desconto), total: r2(pd.total)
+  };
+  if (/^[A-Z0-9]{3,12}$/.test(pd.ref || "")) v.ref = pd.ref;
+  if (pd.nf && /^\d{14}$/.test(pd.nf.cnpj || "")) v.nf = { cnpj: pd.nf.cnpj, razao: txt(pd.nf.razao, 120), email: txt(pd.nf.email, 120) };
+  return v;
+}
+async function gravarVenda(v) {
+  const d = { ...v, criado: serverTimestamp() };
+  if (auth.currentUser) d.uid = auth.currentUser.uid;
+  await setDoc(doc(db, "vendas", v.txid), d);
+}
+async function registrarVenda(pd) {
+  const v = montarVenda(pd);
+  lsS(v);  // guarda antes; apaga quando gravar
+  await gravarVenda(v);
+  lsS(null);
+}
+setTimeout(() => { const v = lsG(); if (v && v.txid) gravarVenda(v).then(() => lsS(null), e => { if (e && e.code === "permission-denied") lsS(null); }); }, 1500);
+window.LojaConta = { salvarPedido, registrarVenda, freteFidelidade, get user() { return user; }, get perfil() { return perfil; }, get pedidos() { return nPedidos; } };
 
 // botão no topo
 const btn = $("#contalink");
@@ -83,6 +116,7 @@ document.addEventListener("loja-conta", () => {
   if (!perfil || !$("#lines")) return;
   if (!$("#name").value) $("#name").value = perfil.nome || "";
   if (!$("#addr").value) $("#addr").value = perfil.endereco || "";
+  if ($("#tel") && !$("#tel").value) $("#tel").value = perfil.telefone || "";
   if (!$("#city").value && perfil.cidade) $("#city").value = perfil.cidade;
   $("#name").dispatchEvent(new Event("input", { bubbles: true }));
 });

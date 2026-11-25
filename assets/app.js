@@ -202,6 +202,7 @@
       else if(ent && !t.city) err = "Escolha a cidade para calcular a entrega.";
       else if(ent && !$("#addr").value.trim()) err = "Informe o endereço de entrega.";
       else if(!$("#name").value.trim()) err = "Informe seu nome.";
+      else if($("#tel") && $("#tel").value.replace(/\D/g,"").length<10) err = "Informe seu WhatsApp com DDD.";
       const nf = $("#nfq") && $("#nfq").checked;
       if($("#nfbox")) $("#nfbox").hidden = !nf;
       const nfCnpj = nf ? $("#nfcnpj").value.replace(/\D/g,"") : "", nfRazao = nf ? $("#nfrazao").value.trim().slice(0,120) : "", nfMail = nf ? $("#nfmail").value.trim().slice(0,120) : "";
@@ -215,9 +216,10 @@
       $("#pixbox").hidden = !!err || t.naEntrega;
       send.textContent = t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
       if(err){ send.href = "#"; return; }
-      const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8);
+      const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8) + Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3).padEnd(3,"0");
+      const tel = $("#tel") ? $("#tel").value.trim().slice(0,20) : "";
       $("#pixcode").value = pixCode(t.total, txid);
-      const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`,
+      const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`, tel?`WhatsApp: ${tel}`:null,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
         t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}`:null,
@@ -226,10 +228,15 @@
         nf?`*Nota fiscal (NF-e)*: CNPJ ${nfCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5")} · ${nfRazao} · ${nfMail}`:null,
         t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
-      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
+      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco})),
+        sub:t.sub, frete:t.frete||0, desconto:Math.round(((t.desc||0)+(t.descInd||0))*100)/100,
+        cliente:{nome:$("#name").value.trim(), telefone:tel, endereco: ent?$("#addr").value.trim():""},
+        nf: nf ? {cnpj:nfCnpj, razao:nfRazao, email:nfMail} : null};
     };
     let ultimo = null;
-    $("#send").addEventListener("click", ()=>{
+    $("#send").addEventListener("click", e=>{
+      if(e.currentTarget.getAttribute("aria-disabled")==="true"){ e.preventDefault(); return; }
+      if(ultimo && window.LojaConta && window.LojaConta.registrarVenda) window.LojaConta.registrarVenda(ultimo).catch(()=>{});  // painel de pedidos da loja
       if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{});
       // conversão do Google Ads (só quando o config tiver ID e label)
       if(ultimo) ga("purchase", {transaction_id:ultimo.txid, value:ultimo.total, currency:"BRL", items:ultimo.itens.map(i=>({item_id:i.sku, item_name:i.nome, item_category:i.categoria, quantity:i.qtd, price:i.preco}))});

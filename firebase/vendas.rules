@@ -1,0 +1,32 @@
+    // ===== Painel de pedidos (25/11): todo pedido do carrinho vira vendas/{txid}, com ou sem login =====
+    // Qualquer pessoa CRIA um pedido novo (status "novo"), mas ninguém além da loja LÊ, muda ou apaga.
+    // Tudo que vem do cliente é não confiável: o painel escapa o texto e recalcula o total pelo catálogo.
+    function txtOk(m, k, n) { return !(k in m) || (m[k] is string && m[k].size() <= n); }
+    function vendaOk(txid) {
+      let d = request.resource.data;
+      return txid.matches('^LD[A-Z0-9]{8,14}$') && d.txid == txid
+        && d.keys().hasOnly(['txid', 'criado', 'status', 'origem', 'cliente', 'entrega', 'pagamento', 'itens', 'sub', 'frete', 'desconto', 'total', 'ref', 'nf', 'uid'])
+        && d.keys().hasAll(['txid', 'criado', 'status', 'origem', 'cliente', 'entrega', 'pagamento', 'itens', 'total'])
+        && d.criado == request.time && d.status == 'novo'
+        && d.origem in ['site', 'whatsapp'] && d.entrega in ['motoboy', 'retirada'] && d.pagamento in ['pix', 'entrega']
+        && d.cliente is map && d.cliente.keys().hasOnly(['nome', 'telefone', 'endereco', 'cidade'])
+        && d.cliente.nome is string && d.cliente.nome.size() <= 80
+        && txtOk(d.cliente, 'telefone', 20) && txtOk(d.cliente, 'endereco', 200) && txtOk(d.cliente, 'cidade', 30)
+        && d.itens is list && d.itens.size() >= 1 && d.itens.size() <= 30
+        && d.total is number && d.total >= 0 && d.total < 100000
+        && (!('sub' in d) || d.sub is number) && (!('frete' in d) || d.frete is number) && (!('desconto' in d) || d.desconto is number)
+        && (!('ref' in d) || (d.ref is string && d.ref.matches('^[A-Z0-9]{3,12}$')))
+        && (!('nf' in d) || (d.nf is map && d.nf.keys().hasOnly(['cnpj', 'razao', 'email'])
+            && d.nf.cnpj is string && d.nf.cnpj.matches('^[0-9]{14}$') && txtOk(d.nf, 'razao', 120) && txtOk(d.nf, 'email', 120)))
+        && (!('uid' in d) || (request.auth != null && d.uid == request.auth.uid));
+    }
+    match /vendas/{txid} {
+      allow create: if vendaOk(txid);
+      allow read, delete: if loja();
+      // loja só muda a etapa, o histórico e a anotação; nunca peças, cliente ou total
+      allow update: if loja()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'historico', 'obs', 'pago_em', 'atualizado'])
+        && request.resource.data.status in ['novo', 'pix_caiu', 'saiu', 'entregue', 'troca', 'cancelado']
+        && (!('obs' in request.resource.data) || (request.resource.data.obs is string && request.resource.data.obs.size() <= 500))
+        && (!('historico' in request.resource.data) || (request.resource.data.historico is list && request.resource.data.historico.size() <= 40));
+    }
