@@ -440,3 +440,13 @@ footer{background:#1a1a1a}
 .avdlg{border:0;border-radius:12px;padding:12px;max-width:min(92vw,900px);width:auto}
 .avdlg::backdrop{background:rgba(0,0,0,.7)}
 .avdlg img,.avdlg video{display:block;max-width:100%;max-height:78vh;margin-top:8px;border-radius:8px}
+/* Luan 25/11: Indique e ganhe em destaque no topo (sem "Peças de moto"; no celular cabe sem rolar) */
+.top .nav a.indlink{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:8px 16px;font-weight:800;font-size:15px;box-shadow:0 0 0 3px rgba(212,160,23,.35),0 6px 18px rgba(0,0,0,.25);animation:indpulse 2.4s ease-in-out infinite}
+.top .nav a.indlink em{font-style:normal;background:var(--blue);color:#fff;border-radius:999px;padding:1px 7px;font-size:12px;font-weight:800}
+.top .nav a.indlink:hover{color:var(--accent-ink);filter:brightness(1.06)}
+@keyframes indpulse{0%,100%{box-shadow:0 0 0 3px rgba(212,160,23,.35),0 6px 18px rgba(0,0,0,.25)}50%{box-shadow:0 0 0 7px rgba(212,160,23,.12),0 6px 18px rgba(0,0,0,.25)}}
+@media (prefers-reduced-motion:reduce){.top .nav a.indlink{animation:none}}
+.top .nav .cartlink{background:#fff;color:var(--blue)!important}
+.top .nav .cartlink b{background:var(--blue);color:#fff}
+@media (max-width:640px){.top .nav{overflow:visible;gap:14px;justify-content:space-between}.top .nav a{font-size:14px}.top .nav a.indlink{padding:6px 12px;font-size:14px}}
+@media (max-width:370px){.top .nav{gap:10px}.top .nav a{font-size:13px}.top .nav a.indlink{padding:6px 10px;font-size:13px}}

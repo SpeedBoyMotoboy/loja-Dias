@@ -6,12 +6,15 @@ import re, unicodedata
 def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
 
-SIGLAS = {"CG", "XRE", "PCX", "CB", "CBX", "SH", "XR", "NX", "XLR", "CRF", "XT", "YBR", "XTZ", "NXR", "YS", "FZ15", "FZ25", "NX4", "T115"}
+SIGLAS = {"CG", "XRE", "PCX", "CB", "CBX", "SH", "XR", "NX", "XLR", "CRF", "XT", "YBR", "XTZ", "NXR", "YS", "FZ15", "FZ25", "NX4", "T115",
+          "ML", "XL", "XLX", "NC", "CBR", "GSX", "KLX", "VT", "DT", "DL", "GS", "YZ", "WR", "VS", "RD", "XVS", "TVS", "BMW", "XMAX", "WGK"}  # 25/11: "Bmw", "Cbr" pareciam erro
 CARRO = re.compile(r"\b\d{1,2}V\b|\bAUDI\b|\(|FORA DA FROTA|CAMINH|AUTOMOV|UTILIT|N[AÃ]O VEICULAR|SEM APLICA|M[AÁ]QUINAS|[OÔ]NIBUS", re.I)  # carro, caminhão (motor entre parênteses) e afins
 PRIORIDADE = ["CG 160", "CG 150", "CG 125", "Biz 125", "Biz 110i", "Biz 100", "Pop 110i", "Pop 100", "Bros 160", "Bros 150", "Bros 125",
               "Fazer 150", "Factor 150", "Crosser 150", "XRE 300", "XRE 190", "Fazer 250", "Lander 250", "Twister 250", "CB 300", "PCX 150", "NMax 160"]
 
 def _cap(w):
+    if "-" in w and not re.search(r"\d", w):  # Harley-Davidson
+        return "-".join(_cap(x) for x in w.split("-"))
     return w if (w.upper() in SIGLAS or re.search(r"\d", w)) else w.capitalize()
 
 def moto_amigavel(modelo):
@@ -28,7 +31,7 @@ def moto_amigavel(modelo):
             return re.sub(pat, rep, m), ""
     g = re.match(r"^CG (\d+) (\w+)$", m)
     if g:
-        return f"CG {g.group(1)}", g.group(2).capitalize()
+        return f"CG {g.group(1)}", _cap(g.group(2))
     return " ".join(_cap(w) for w in m.split()), ""
 
 def _parse(v):
