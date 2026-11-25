@@ -84,10 +84,11 @@
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
       const lim = city ? (city.gratis_acima||C.frete_gratis_acima) : null;
-      const gratis = !!(lim && sub>=lim);
+      const fidel = !!(window.LojaConta && window.LojaConta.freteFidelidade && window.LojaConta.freteFidelidade());
+      const gratis = fidel || !!(lim && sub>=lim);
       const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
-      return {items,sub,desc,frete,ship,city,pix,gratis,lim,total:sub-desc+(frete||0)};
+      return {items,sub,desc,frete,ship,city,pix,gratis,fidel,lim,total:sub-desc+(frete||0)};
     };
     const refresh = () => {
       const t = totals(); badge();
@@ -98,7 +99,7 @@
       $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
-        + `<span>Entrega</span><span>${t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
+        + `<span>Entrega</span><span>${t.fidel?"Grátis (6º pedido)":t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
         + (t.lim&&!t.gratis&&t.items.length&&t.ship!=="retirada"?`<span class="note" style="grid-column:1/-1">Faltam ${brl(t.lim-t.sub)} para frete grátis em ${t.city.nome}.</span>`:"")
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
@@ -118,11 +119,11 @@
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
-        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.gratis?"grátis":brl(t.frete||0)}`,
+        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
-      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,qtd:i.q,preco:i.p.preco}))};
+      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
     };
     let ultimo = null;
     $("#send").addEventListener("click", ()=>{ if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{}); });

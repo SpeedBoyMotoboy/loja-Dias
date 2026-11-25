@@ -377,9 +377,10 @@ def privacidade():
 <h2>O que guardamos se você criar conta</h2><ul>
 <li>Do login Google: nome, e-mail e um código interno da conta. Nunca vemos sua senha.</li>
 <li>O que você preencher: nome para entrega, WhatsApp, cidade e endereço.</li>
-<li>Histórico dos seus pedidos: peças, quantidades, valores, data e código do pedido.</li></ul>
+<li>Histórico dos seus pedidos: peças, quantidades, valores, data e código do pedido.</li>
+<li>Se você preencher: modelo da moto, km por dia, intervalo de troca de óleo e datas das últimas trocas (óleo, relação, pastilha).</li></ul>
 <p>Não guardamos CPF, dados de cartão nem dados bancários. O pagamento é por Pix, feito no app do seu banco.</p>
-<h2>Para quê</h2><p>Só para entregar seus pedidos, preencher o endereço automaticamente e mostrar seu histórico. Não vendemos nem compartilhamos seus dados para propaganda.</p>
+<h2>Para quê</h2><p>Só para entregar seus pedidos, preencher o endereço automaticamente, mostrar seu histórico, contar os pedidos do programa de fidelidade (6º pedido com frete grátis) e, <b>só se você marcar</b>, lembrar no WhatsApp quando chegar a hora da troca. Você pode desmarcar o lembrete quando quiser. Não vendemos nem compartilhamos seus dados para propaganda.</p>
 <h2>Onde ficam</h2><p>No Google Firebase (servidor em São Paulo). Cada cliente só consegue ver os próprios dados.</p>
 <h2>Por quanto tempo</h2><p>Enquanto sua conta existir. Você pode apagar tudo quando quiser em <a href="minha-conta.html">Minha conta</a> › Apagar minha conta. Isso apaga seus dados, seu histórico e o acesso de login na hora. Conversas no WhatsApp seguem as regras do WhatsApp.</p>
 <h2>Seus direitos</h2><p>Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento pelo WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
@@ -427,6 +428,8 @@ def main():
     for p in ps: produto(p)
     for c in CFG["cidades"]: cidade(c, ps)
     extras(ps)
+    if CFG.get("dominio"):
+        (DIST / "CNAME").write_text(CFG["dominio"] + "\n", encoding="utf-8")  # domínio próprio no GitHub Pages
     if SO_MOTO:
         for f in DIST.glob("*.html"):
             t = f.read_text(encoding="utf-8")
