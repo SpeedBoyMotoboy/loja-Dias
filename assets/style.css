@@ -456,3 +456,4 @@ footer{background:#1a1a1a}
 .line .lfoto img{width:100%;height:100%;object-fit:contain;padding:4px}
 .line .lnome{line-height:1.3}
 .line .qty{grid-column:2}
+.opt:has(input:disabled){opacity:.55}
