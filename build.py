@@ -24,6 +24,9 @@ FRETE_OK = CFG.get("fretes_confirmados", False)
 GRATIS = CFG.get("frete_gratis_acima") or 0
 FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 NA_ENTREGA = CFG.get("pagar_na_entrega", False)  # Pix ao motoboy na entrega; só liga com ok do Luan
+# Programa de indicação (25/11): link por pessoa (?ref=CODIGO). Desconto para quem compra e comissão para quem indica,
+# só nas peças em que ainda sobra o lucro mínimo depois dos dois (nunca prejuízo).
+IND = CFG.get("indicacao") if (CFG.get("indicacao") or {}).get("ligada") else None
 GARANTIA = "Garantia de 90 dias contra defeito de fabricação"  # garantia legal (CDC, art. 26)
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo, graxa e aditivos",
@@ -138,6 +141,9 @@ def carregar():
                  descricao=r["descricao"].strip())
         custo = float(r["custo"]) if (r.get("custo") or "").strip() else None
         p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < LUCRO_MIN_CARRINHO)
+        # participa da indicação: depois do desconto e da comissão, a peça ainda deixa o lucro mínimo
+        p["ind"] = bool(IND and custo is not None and p["preco"] is not None
+                        and p["preco"] - custo - (IND["desconto"] + IND["comissao"]) * p["preco"] >= IND.get("lucro_min", LUCRO_MIN_CARRINHO))
         if p["preco"] is None:
             continue
         p["fotos"] = fotos_de(p["sku"], r.get("partes", ""))
@@ -197,7 +203,7 @@ def head(title, desc, path, extra_ld=None, artifact=False):
     meta = (f'<title>{e(title)}</title><meta name="description" content="{e(desc)}">'
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
-            f'<meta property="og:locale" content="pt_BR"><meta name="theme-color" content="#002776">'
+            f'<meta property="og:locale" content="pt_BR"><meta property="og:url" content="{canon}"><meta property="og:image" content="{URL}/img/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:site_name" content="Loja Dias Peças"><meta name="theme-color" content="#002776">'
             f'{FONTS}<link rel="stylesheet" href="assets/style.css">{ld}')
     if artifact:
         return meta
@@ -308,7 +314,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a>{'<a href="creditos.html">Créditos das fotos</a>' if not VITRINE else ""}</div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a>{'<a href="indique.html">Indique e ganhe</a>' if IND and not VITRINE else ""}<a href="privacidade.html">Privacidade</a>{'<a href="creditos.html">Créditos das fotos</a>' if not VITRINE else ""}</div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener" aria-label="Falar com a loja no WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.200 8.200 0 0 1-4.200-1.150l-.300-.180-3 .790.800-2.900-.200-.300A8.200 8.200 0 1 1 12 20.200zm4.500-6.100c-.250-.120-1.460-.720-1.690-.800-.230-.080-.390-.120-.560.120-.160.250-.640.800-.780.970-.140.160-.290.180-.530.060-.250-.120-1.040-.380-1.980-1.220-.730-.650-1.230-1.460-1.370-1.700-.140-.250-.020-.380.110-.500.110-.110.250-.290.370-.430.120-.140.160-.250.250-.410.080-.160.040-.310-.020-.430-.060-.120-.560-1.340-.760-1.840-.200-.480-.410-.420-.560-.420h-.480c-.160 0-.430.060-.660.310-.230.250-.860.840-.860 2.050 0 1.210.880 2.380 1 2.540.120.160 1.740 2.650 4.200 3.720.590.250 1.050.400 1.400.520.590.190 1.130.160 1.550.100.470-.070 1.460-.600 1.670-1.170.200-.580.200-1.070.140-1.170-.060-.110-.220-.170-.470-.290z"/></svg><span>WhatsApp</span></a>
 <div class="buybar" id="buybar" hidden></div>
@@ -579,6 +585,7 @@ def produto(p, ps=()):
 {confianca()}
 {no_kit(p)}
 <a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande o modelo e o ano no WhatsApp</a>
+{f'<button class="btn ghost share" type="button" data-share="{e(p["url"])}" data-share-txt="{e(p["nome"] + " por " + brl(p["preco"]) + ", entrega no mesmo dia na Grande Vitória")}">Compartilhar esta peça no WhatsApp</button>' if IND else ""}
 </div></div>
 {kit_lista(p) if kit else ""}
 {junto_html}
@@ -687,6 +694,51 @@ def pagina_moto(nome, sl, fams, marca, ps):
            f"Peças para {marca} {nome}: {lista}. Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Frete grátis acima de {brl(GRATIS)}.",
            corpo, ld)
 
+def indique(ps):
+    """Página do programa de indicação: a pessoa cria o link dela, avisa a loja (para receber a comissão) e compartilha."""
+    pct = lambda x: f"{round(x * 100):g}%"
+    d, c, dias = pct(IND["desconto"]), pct(IND["comissao"]), IND.get("dias", 30)
+    n = sum(1 for p in ps if p["ind"])
+    ex = next((p for p in sorted(ps, key=lambda p: -p["preco"]) if p["ind"] and p["categoria"] == "kit" and p["preco"] < 120), None)
+    exemplo = (f'<p class="note">Exemplo: o cliente compra o {e(ex.get("titulo") or ex["nome"])} de {brl(ex["preco"])} pelo seu link. '
+               f'Ele paga {brl(ex["preco"] * (1 - IND["desconto"]))} e você ganha {brl(ex["preco"] * IND["comissao"])} no Pix.</p>') if ex else ""
+    corpo = f'''<section><div class="wrap prose indique" style="max-width:720px">
+<h1>Indique e ganhe</h1>
+<p class="lead">Mande o seu link para os amigos e grupos de motoboy. Quem compra pelo seu link ganha <b>{d} de desconto</b>. Você ganha <b>{c} de comissão no Pix</b> em cada venda.</p>
+<div class="panel" id="indbox">
+<h2>1. Crie o seu link</h2>
+<div class="field"><label class="lbl" for="inome">Seu nome</label><input id="inome" autocomplete="given-name" placeholder="Ex.: João"></div>
+<div class="field"><label class="lbl" for="itel">Seu WhatsApp com DDD</label><input id="itel" inputmode="tel" autocomplete="tel" placeholder="Ex.: 27 99999-1234"></div>
+<div class="field"><label class="lbl" for="ipix">Sua chave Pix (para receber a comissão)</label><input id="ipix" placeholder="CPF, celular, e-mail ou chave aleatória"></div>
+<p class="err" id="ierr" hidden></p>
+<a class="btn wa big" id="iativar" href="#" target="_blank" rel="noopener" aria-disabled="true">Criar meu link e avisar a loja</a>
+<p class="note">Abre o WhatsApp da loja com seus dados prontos. É só apertar enviar. Assim a loja sabe para quem pagar.</p>
+</div>
+<div class="panel" id="indlink" hidden>
+<h2>2. Compartilhe</h2>
+<p>Seu código: <b class="codigo" id="icod"></b></p>
+<div class="linkbox"><input id="ilink" readonly aria-label="Seu link"><button class="btn dark" type="button" id="icopiar">Copiar link</button></div>
+<a class="btn wa big" id="izap" href="#" target="_blank" rel="noopener">Mandar no WhatsApp (grupos e contatos)</a>
+<button class="btn ghost" type="button" id="imais" hidden>Mandar por outro app</button>
+<span class="lbl" style="margin-top:14px">Mensagem pronta</span>
+<textarea id="imsg" rows="6" readonly></textarea>
+<button class="btn ghost" type="button" id="icopmsg">Copiar mensagem</button>
+<p class="note">Dica: em qualquer peça do site tem o botão <b>Compartilhar esta peça no WhatsApp</b>. Neste celular ele já manda com o seu link.</p>
+<button class="btn ghost" type="button" id="itrocar">Não sou eu / criar outro link</button>
+</div>
+<h2>Como funciona</h2>
+<ol>
+<li>Quem abre o seu link fica com o desconto por {dias} dias naquele celular, em qualquer página do site.</li>
+<li>O desconto de {d} vale para {n} peças e kits (a maioria). No carrinho aparece quanto o cliente economizou.</li>
+<li>O pedido chega na loja com o seu código. Depois que o cliente paga e recebe a peça, a loja manda {c} do valor dessas peças para a sua chave Pix.</li>
+<li>Não vale compra feita no seu próprio link.</li>
+</ol>
+{exemplo}
+<p class="note">Dúvida? Chame a loja no WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
+</div></section>'''
+    pagina("indique.html", "Indique e ganhe | Loja Dias Peças",
+           f"Mande o seu link da Loja Dias: quem compra ganha {d} de desconto e você ganha {c} de comissão no Pix.", corpo)
+
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
 <p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam até as {CFG["entrega_ate"]} do mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
@@ -752,7 +804,7 @@ def privacidade():
 
 def extras(ps):
     hoje = date.today().isoformat()
-    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
+    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
@@ -762,13 +814,16 @@ def extras(ps):
 <g:google_product_category>{"Vehicles &amp; Parts &gt; Vehicle Parts &amp; Accessories &gt; Motor Vehicle Parts"}</g:google_product_category></item>
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
-    pub = [dict({k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon", "fams", "universal")},
+    pub = [dict({k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon", "fams", "universal", "ind")},
                 foto=p["fotos"][0] if p["fotos"] else "") for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["ga"] = CFG.get("ga4_id", "")
     cfg["frete_gratis_acima"] = GRATIS
     cfg["na_entrega"] = NA_ENTREGA
+    cfg["site"] = URL
+    if IND:
+        cfg["ind"] = {"desconto": IND["desconto"], "comissao": IND["comissao"], "dias": IND.get("dias", 30)}
     if FIREBASE:
         cfg["firebase"] = FIREBASE
         cfg["appcheck"] = CFG.get("appcheck_site_key", "")
@@ -791,6 +846,8 @@ def main():
         pedido()
     else:
         catalogo(ps); carrinho()
+        if IND:
+            indique(ps)
         if FIREBASE:
             minha_conta(); admin()
     for p in ps: produto(p, ps)

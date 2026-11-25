@@ -19,7 +19,8 @@ async function listar() {
   let qs;
   try { qs = await getDocs(query(collectionGroup(db, "pedidos"), orderBy("criado", "desc"), limit(60))); }
   catch (e) { box.innerHTML = `<p class="err">Sem acesso. Entre com a conta Google da loja.</p><button class="btn ghost" id="asair">Sair</button>`; document.querySelector("#asair").onclick = () => signOut(auth); return; }
-  const linhas = [], caminhos = [];
+  const linhas = [], caminhos = [], comissoes = {};
+  const IND = C.ind, okRef = r => typeof r === "string" && /^[A-Z0-9]{3,12}$/.test(r);
   const P = window.LOJA.produtos, CID = C.cidades || [];
   for (const d of qs.docs) {
     const o = d.data(), uid = d.ref.parent.parent.id;
@@ -32,18 +33,27 @@ async function listar() {
     const sub = itens.reduce((s, i) => { const p = P.find(x => x.sku === i.sku); return s + (p ? p.preco * (Number(i.qtd) | 0) : NaN); }, 0);
     const cid = CID.find(c => c.slug === o.cidade);
     const frete = cid ? (sub >= (cid.gratis_acima || C.frete_gratis_acima || Infinity) ? 0 : cid.normal) : 0;
+    // indicação: desconto e comissão recalculados pelo catálogo (o código vem do celular do cliente: só letras e números)
+    const ref = okRef(o.ref) ? o.ref : "";
+    const baseInd = ref && IND ? itens.reduce((s, i) => { const p = P.find(x => x.sku === i.sku); return s + (p && p.ind ? p.preco * (Number(i.qtd) | 0) : 0); }, 0) : 0;
+    const descInd = Math.round(baseInd * (IND ? IND.desconto : 0) * 100) / 100, comissao = Math.round(baseInd * (IND ? IND.comissao : 0) * 100) / 100;
+    if (ref && o.status === "pago") comissoes[ref] = (comissoes[ref] || 0) + comissao;
     const semFreteOk = o.cidade === "retirada" || (Number(cli.pedidos_pagos) | 0) % 6 === 5;
-    const confere = Number.isFinite(sub) && (semFreteOk ? [sub, sub + frete] : [sub + frete]).some(v => Math.abs(v - Number(o.total)) < 0.01);
+    const confere = Number.isFinite(sub) && (semFreteOk ? [sub, sub + frete] : [sub + frete]).some(v => Math.abs(v - descInd - Number(o.total)) < 0.011);
     caminhos.push({ path: d.ref.path, uid });
     const pago = o.status === "pago";
     linhas.push(`<div class="panel" style="margin-bottom:10px"><b>${esc(o.txid)}</b> · ${dt} · <b>${brl(Number(o.total) || 0)}</b><br>
       ${esc(cli.nome)} · ${esc(cli.telefone)} · ${esc(o.cidade)}<br><span class="note">${it}</span><br>
-      ${confere ? "" : `<p class="err">Atenção: total não bate com os preços da loja (esperado ${Number.isFinite(sub) ? brl(sub + frete) : "peça desconhecida"}). Confira antes de marcar.</p>`}
+      ${ref ? `<span class="note">Indicado por <b>${esc(ref)}</b> · desconto ${brl(descInd)} · comissão a pagar ${brl(comissao)}</span><br>` : ""}
+      ${confere ? "" : `<p class="err">Atenção: total não bate com os preços da loja (esperado ${Number.isFinite(sub) ? brl(sub - descInd + frete) : "peça desconhecida"}). Confira antes de marcar.</p>`}
       ${pago ? `<span class="stock">Pago ✓</span>` : `<button class="btn" data-i="${caminhos.length - 1}">Pix recebido</button>`}
       <span class="note"> Pedidos pagos do cliente: ${Number(cli.pedidos_pagos) | 0}</span></div>`);
   }
   CAMINHOS = caminhos;
-  box.innerHTML = (linhas.join("") || "<p>Nenhum pedido ainda.</p>") + `<button class="btn ghost" id="asair">Sair</button>`;
+  const resumo = Object.keys(comissoes).length ? `<div class="panel" style="margin-bottom:14px"><b>Comissões dos pedidos pagos (últimos 60 pedidos)</b><br>`
+    + Object.entries(comissoes).sort((a, b) => b[1] - a[1]).map(([r, v]) => `${esc(r)}: ${brl(v)}`).join("<br>")
+    + `<br><span class="note">Só conta pedido de cliente com conta no site. Pedido só pelo WhatsApp: a comissão é o mesmo valor do "desconto" escrito na mensagem.</span></div>` : "";
+  box.innerHTML = resumo + (linhas.join("") || "<p>Nenhum pedido ainda.</p>") + `<button class="btn ghost" id="asair">Sair</button>`;
   document.querySelector("#asair").onclick = () => signOut(auth);
 }
 

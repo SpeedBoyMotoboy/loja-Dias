@@ -66,5 +66,13 @@
   "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ",
   "dominio": "lojadias.com.br",
   "pagar_na_entrega": true,
-  "_obs_pagar_na_entrega": "Luan aprovou em 25/11 01h48: cliente pode pagar o Pix ao motoboy na entrega. Para desligar, trocar para false."
+  "_obs_pagar_na_entrega": "Luan aprovou em 25/11 01h48: cliente pode pagar o Pix ao motoboy na entrega. Para desligar, trocar para false.",
+  "indicacao": {
+    "ligada": true,
+    "desconto": 0.05,
+    "comissao": 0.05,
+    "lucro_min": 8,
+    "dias": 30,
+    "_obs": "Programa de indicação (25/11). Quem compra pelo link ganha 'desconto' e o indicador ganha 'comissao' (fração do preço) só nas peças em que sobra lucro_min depois dos dois. Para desligar: ligada=false."
+  }
 }

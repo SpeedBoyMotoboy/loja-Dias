@@ -44,6 +44,7 @@ async function salvarPedido(pd) {  // histórico do próprio cliente; o pedido r
   await addDoc(collection(db, "clientes", user.uid, "pedidos"), {
     txid: txt(pd.txid, 25), total: Math.round(pd.total * 100) / 100, cidade: txt(pd.cidade, 30),
     itens: pd.itens.slice(0, 30).map(i => ({ sku: txt(i.sku, 40), nome: txt(i.nome, 90), qtd: Math.min(99, i.qtd | 0), preco: Math.round(i.preco * 100) / 100 })),
+    ...(/^[A-Z0-9]{3,12}$/.test(pd.ref || "") ? { ref: pd.ref } : {}),  // código de quem indicou (programa de indicação)
     criado: serverTimestamp()
   });
   nPedidos++;

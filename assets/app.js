@@ -11,6 +11,28 @@
   const count = () => Object.values(cart).reduce((a,b)=>a+b,0);
   const badge = () => $$(".cartcount").forEach(b=>b.textContent=count());
   // contador de visitas (Google Analytics): só manda evento quando o config tiver o ID
+  // Indicação (25/11): quem abre lojadias.com.br/?ref=CODIGO fica com o desconto por alguns dias neste celular.
+  // Desconto só nas peças marcadas "ind" pelo build (as que ainda deixam o lucro mínimo). Não vale no próprio link.
+  const IND = C.ind;
+  const okRef = s => /^[A-Z0-9]{3,12}$/.test(s || "");
+  const lsGet = k => { try{ return localStorage.getItem(k) }catch(e){ return null } };
+  const lsSet = (k,v) => { try{ v===null ? localStorage.removeItem(k) : localStorage.setItem(k,v) }catch(e){} };
+  let meuRef = null; try{ meuRef = JSON.parse(lsGet("dias-meu-ref")||"null"); if(meuRef && !okRef(meuRef.c)) meuRef = null; }catch(e){}
+  if(IND){ const q = (new URLSearchParams(location.search).get("ref")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if(okRef(q)) lsSet("dias-ref", JSON.stringify({c:q, t:Date.now()})); }
+  const refAtivo = () => { if(!IND) return null; let r = null; try{ r = JSON.parse(lsGet("dias-ref")||"null") }catch(e){}
+    if(!r || !okRef(r.c) || !(Date.now()-r.t < IND.dias*864e5)) return null;
+    return (meuRef && meuRef.c===r.c) ? null : r.c; };
+  const pctInd = IND ? Math.round(IND.desconto*100)+"%" : "";
+  const linkCom = path => (C.site||location.origin) + "/" + (path||"") + (meuRef ? ((path||"").includes("?")?"&":"?") + "ref=" + meuRef.c : "");
+  { const r = refAtivo(), top = document.querySelector("header.top");
+    if(r && top && !$("#lines")){ const f = document.createElement("div"); f.className = "indfaixa";
+      f.innerHTML = `Indicação de <b></b>: ${pctInd} de desconto já aparece no carrinho`; f.querySelector("b").textContent = r; top.before(f); } }
+  // botão "Compartilhar esta peça": vai pelo WhatsApp, com o link da pessoa quando ela já criou o dela
+  document.addEventListener("click", e => { const b = e.target.closest("[data-share]"); if(!b) return;
+    const msg = (b.dataset.shareTxt||"") + (meuRef ? `. Pelo meu link tem ${pctInd} de desconto` : "") + ":\n" + linkCom(b.dataset.share);
+    window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener"); });
+
   const ga = (nome, dados) => { try{ if(C.ga && window.gtag) gtag("event", nome, Object.assign({send_to:C.ga}, dados||{})); }catch(e){} };
 
 
@@ -131,17 +153,20 @@
       const gratis = fidel || !!(lim && sub>=lim);
       const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
-      return {items,sub,desc,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:sub-desc+(frete||0)};
+      const ref = refAtivo(), baseInd = ref ? items.filter(i=>i.p.ind).reduce((a,i)=>a+i.p.preco*i.q,0) : 0;
+      const descInd = Math.round(baseInd*(IND?IND.desconto:0)*100)/100;  // frete grátis continua contando pelo valor das peças sem o desconto
+      return {items,sub,desc,descInd,ref,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:Math.round((sub-desc-descInd+(frete||0))*100)/100};
     };
     const refresh = () => {
       const t = totals(); badge();
       lines.innerHTML = t.items.length ? t.items.map(i=>`
-        <div class="line"><a href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}</b>
+        <div class="line"><a href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind?` <small class="indtag">−${pctInd}</small>`:""}</b>
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
       $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
+        + (t.descInd?`<span>Desconto indicação (${t.ref})</span><span>− ${brl(t.descInd)}</span>`:"")
         + `<span>Entrega</span><span>${t.fidel?"Grátis (6º pedido)":t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
@@ -183,11 +208,12 @@
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
+        t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         t.naEntrega ? `Pagamento: Pix na entrega, ao motoboy` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
-      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
+      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
     };
     let ultimo = null;
     $("#send").addEventListener("click", ()=>{
@@ -206,6 +232,39 @@
     document.addEventListener("dias-cart", refresh);
     refresh();
   }
+  // página Indique e ganhe: cria o código (nome + 3 últimos números do WhatsApp), avisa a loja e mostra o link para compartilhar
+  const ib = $("#indbox");
+  if(ib && IND){
+    const codigo = () => { const n = (norm($("#inome").value).toUpperCase().match(/[A-Z]+/)||[""])[0].slice(0,8), d = $("#itel").value.replace(/\D/g,"");
+      return n.length>=2 && d.length>=10 ? n + d.slice(-3) : ""; };
+    const mostrar = () => {
+      $("#indlink").hidden = !meuRef; ib.hidden = !!meuRef;
+      if(!meuRef) return;
+      const link = linkCom(""), gr = C.frete_gratis_acima;
+      $("#icod").textContent = meuRef.c; $("#ilink").value = link;
+      const msg = `Peça de moto com entrega no mesmo dia na Grande Vitória (pedido até ${C.corte_mesmo_dia}).\nPelo meu link você ganha ${pctInd} de desconto:\n${link}\nPix agora ou na entrega${gr?". Frete grátis acima de "+brl(gr):""}.`;
+      $("#imsg").value = msg; $("#izap").href = "https://wa.me/?text=" + encodeURIComponent(msg);
+      if(navigator.share){ $("#imais").hidden = false; $("#imais").onclick = () => navigator.share({text: msg}).catch(()=>{}); }
+    };
+    const upd = () => {
+      const c = codigo(), pix = $("#ipix").value.trim();
+      const err = !$("#inome").value.trim() ? "Informe seu nome." : $("#itel").value.replace(/\D/g,"").length<10 ? "Informe o WhatsApp com DDD." : !c ? "Use letras no nome." : pix.length<5 ? "Informe a chave Pix para receber." : "";
+      $("#ierr").hidden = !err; $("#ierr").textContent = err;
+      const a = $("#iativar"); a.setAttribute("aria-disabled", !!err);
+      a.href = err ? "#" : `https://wa.me/${C.whatsapp}?text=` + encodeURIComponent([`*Quero ser indicador da Loja Dias*`, `Nome: ${$("#inome").value.trim().slice(0,60)}`,
+        `WhatsApp: ${$("#itel").value.trim().slice(0,20)}`, `Chave Pix: ${pix.slice(0,80)}`, `Meu código: ${c}`].join("\n"));
+    };
+    ib.addEventListener("input", upd); upd();
+    $("#iativar").addEventListener("click", e => { const c = codigo();
+      if(e.currentTarget.getAttribute("aria-disabled")==="true"){ e.preventDefault(); $("#ierr").hidden = false; return; }
+      meuRef = {c, t: Date.now()}; lsSet("dias-meu-ref", JSON.stringify(meuRef)); setTimeout(mostrar, 200); });
+    const copiar = async (txt, b, volta) => { try{ await navigator.clipboard.writeText(txt); b.textContent = "Copiado ✓"; }catch(_){ b.textContent = "Selecione e copie"; } setTimeout(()=>b.textContent = volta, 1500); };
+    $("#icopiar").addEventListener("click", e => copiar($("#ilink").value, e.target, "Copiar link"));
+    $("#icopmsg").addEventListener("click", e => copiar($("#imsg").value, e.target, "Copiar mensagem"));
+    $("#itrocar").addEventListener("click", () => { meuRef = null; lsSet("dias-meu-ref", null); mostrar(); });
+    mostrar();
+  }
+
   // formulário de pedido (modo vitrine, sem catálogo)
   const pf = $("#pedidoform");
   if(pf){
