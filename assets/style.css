@@ -312,3 +312,15 @@ body.hasbar footer .wrap{padding-bottom:150px}
 .nokit .nk small{display:block;font-weight:600;font-size:12px;color:var(--ok)}
 @media (max-width:560px){.kitbox li{grid-template-columns:52px 1fr auto;gap:10px;padding:10px 12px}.kfoto{width:52px;height:52px}.kitbox h2{padding:12px;font-size:23px}.kconta{padding:12px 12px 14px}.kconta .kfinal{margin-inline:-12px;padding:10px 12px}}
 .price s{display:block;font-family:var(--body);font-weight:500;font-size:12.5px;color:var(--muted);margin-bottom:2px}
+
+/* ---------- Foto da moto no card "Peças para a sua moto" (25/11) ---------- */
+.mototiles{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.mototiles a{padding:0;gap:0;overflow:hidden}
+.mototiles .mf{display:grid;place-items:center;aspect-ratio:4/3;background:#0f1317;color:#5d6770;overflow:hidden}
+.mototiles .mf img{width:100%;height:100%;object-fit:cover;display:block}
+.mototiles .mf svg{width:58%;height:auto}
+.mototiles .mt{display:flex;flex-direction:column;gap:2px;padding:10px 12px 11px}
+.mototiles .mt span{font-size:13px;color:var(--road-muted)}
+.mototiles a:hover .mt span{color:var(--accent-ink)}
+.mototiles a:hover .mf{color:var(--accent-ink)}
+@media (max-width:640px){.mototiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mototiles b{font-size:17px;letter-spacing:0}.mototiles .mt{padding:7px 8px 8px}.mototiles .mt span{font-size:12px}.mototiles .mf{aspect-ratio:5/4}}
