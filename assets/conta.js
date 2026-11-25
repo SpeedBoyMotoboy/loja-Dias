@@ -4,7 +4,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config;
 const app = initializeApp(C.firebase);
@@ -60,6 +60,10 @@ async function apagarConta() {  // LGPD: apaga histórico, perfil e o login
   const ps = await getDocs(collection(db, "clientes", user.uid, "pedidos"));
   for (const d of ps.docs) await deleteDoc(d.ref);
   await deleteDoc(doc(db, "clientes", user.uid));
+  try {  // avaliações e fotos do cliente também saem
+    const av = await getDocs(query(collection(db, "avaliacoes"), where("uid", "==", user.uid)));
+    for (const d of av.docs) { for (let i = 0; i < 4; i++) await deleteDoc(doc(db, "avaliacoes", d.id, "fotos", String(i))).catch(() => {}); await deleteDoc(d.ref); }
+  } catch (e) {}
   try { await deleteUser(user); }
   catch (e) { if (e.code === "auth/requires-recent-login") { await reauthenticateWithPopup(user, new GoogleAuthProvider()); await deleteUser(auth.currentUser); } else throw e; }
 }

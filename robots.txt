@@ -2,5 +2,6 @@ User-agent: *
 Disallow: /carrinho.html
 Disallow: /minha-conta.html
 Disallow: /admin.html
+Disallow: /moderar.html
 Disallow: /_artifact_index.html
 Sitemap: https://lojadias.com.br/sitemap.xml
