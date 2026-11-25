@@ -3,3 +3,4 @@ __pycache__/
 dados/produtos.csv
 dados/revisao.txt
 firestore.rules
+dados/fora_sem_moto.txt

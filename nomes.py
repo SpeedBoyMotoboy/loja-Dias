@@ -7,7 +7,7 @@ def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
 
 SIGLAS = {"CG", "XRE", "PCX", "CB", "CBX", "SH", "XR", "NX", "XLR", "CRF", "XT", "YBR", "XTZ", "NXR", "YS", "FZ15", "FZ25", "NX4", "T115"}
-CARRO = re.compile(r"\b(8V|16V|AUDI)\b", re.I)
+CARRO = re.compile(r"\b\d{1,2}V\b|\bAUDI\b|\(|FORA DA FROTA|CAMINH|AUTOMOV|UTILIT", re.I)  # carro, caminhão (motor entre parênteses) e afins
 PRIORIDADE = ["CG 160", "CG 150", "CG 125", "Biz 125", "Biz 110i", "Biz 100", "Pop 110i", "Pop 100", "Bros 160", "Bros 150", "Bros 125",
               "Fazer 150", "Factor 150", "Crosser 150", "XRE 300", "XRE 190", "Fazer 250", "Lander 250", "Twister 250", "CB 300", "PCX 150", "NMax 160"]
 
@@ -79,9 +79,41 @@ TIPOS_PECA = [
     (r"^vela ignicao iridium", "Vela de ignição iridium"), (r"^vela ignicao", "Vela de ignição"),
     (r"^lampada farol alto, farol baixo", "Lâmpada do farol"), (r"^lampada farol moto", "Lâmpada do farol"),
     (r"^manete freio a disco", "Manete de freio a disco"), (r"^manete freio a tambor", "Manete de freio a tambor"), (r"^manete embreagem", "Manete de embreagem"),
+    (r"^pedaleira traseira/dianteira esquerda", "Pedaleira esquerda"), (r"^pedaleira traseira/dianteira direita", "Pedaleira direita"),
+    (r"^pedaleira traseira ?esquerda", "Pedaleira traseira esquerda"), (r"^pedaleira traseira ?direita", "Pedaleira traseira direita"),
     (r"^pedaleira traseira esquerda", "Pedaleira traseira esquerda"), (r"^pedaleira traseira direita", "Pedaleira traseira direita"), (r"^pedaleira traseira", "Pedaleira traseira"),
     (r"^retrovisor", "Retrovisor"),
+    # 25/11 (catálogo ampliado): tipos que antes não tinham nome pela moto
+    (r"^pastilha freio (diant|dia)\w*\s*/\s*tra", "Pastilha de freio dianteira ou traseira"),
+    (r"^patim freio (dianteiro|diant|dia)\w*\s*/\s*tra", "Lona de freio dianteira ou traseira"),
+    (r"^patim freio traseir", "Lona de freio traseira"), (r"^patim freio dianteir", "Lona de freio dianteira"), (r"^patim freio", "Lona de freio"),
+    (r"^filtro do ar", "Filtro de ar"), (r"^vela de ignicao iridium", "Vela de ignição iridium"), (r"^vela de ignicao", "Vela de ignição"),
+    (r"^pedaleira dianteira esquerda", "Pedaleira dianteira esquerda"), (r"^pedaleira dianteira direita", "Pedaleira dianteira direita"),
+    (r"^pedaleira traseira/dianteira esquerda", "Pedaleira esquerda"), (r"^pedaleira traseira/dianteira direita", "Pedaleira direita"),
+    (r"^pedaleira traseira ?esquerda", "Pedaleira traseira esquerda"), (r"^pedaleira traseira ?direita", "Pedaleira traseira direita"), (r"^pedaleira", "Pedaleira traseira"),
+    (r"^retentor (garfo|bengala)", "Retentor de bengala"), (r"^retentor haste valvula", "Retentor de válvula"),
+    (r"^retentor (pedal cambio|cambio|seletor marcha|eixo seletor)", "Retentor do pedal de câmbio"),
+    (r"^retentor (eixo )?pedal partida", "Retentor do pedal de partida"),
+    (r"^retentor (cubo )?roda traseir", "Retentor da roda traseira"), (r"^retentor (cubo )?roda dianteir", "Retentor da roda dianteira"), (r"^retentor cubo roda", "Retentor do cubo da roda"),
+    (r"^retentor (haste )?embreagem", "Retentor da haste da embreagem"), (r"^retentor pinhao", "Retentor do pinhão"),
+    (r"^retentor (reparo )?mesa magneto", "Retentor do magneto"), (r"^retentor virabrequim", "Retentor do virabrequim"),
+    (r"^lampada (de )?farol milha", "Lâmpada do farol de milha"), (r"^lampada (de )?farol", "Lâmpada do farol"),
+    (r"^lampada (de )?sinaliz\w*", "Lâmpada de sinalização"), (r"^lampada", "Lâmpada"),
 ]
+
+def _medida(desc):
+    """'RETENTOR BENGALA 27X39X10,5' -> 'Medida 27 x 39 x 10,5 mm'"""
+    g = re.search(r"(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)(?:\s*X\s*(\d+(?:[.,]\d+)?))?", desc.upper())
+    if not g:
+        return ""
+    return "Medida " + " x ".join(re.sub(r"[.,]0$", "", x).replace(".", ",") for x in g.groups() if x) + " mm"
+
+def _lampada(desc):
+    """'LAMPADA DE SINALIZACAO 12V 5W PINO DESENCONTRADO 2 POLOS' -> ' 12V 5W pino desencontrado 2 polos'"""
+    r = re.sub(r"^L[AÂ]MPADA( DE)?( FAROL( MILHA)?| SINALIZ\w*)?(\s+HALOWAY)?", "", desc.strip(), flags=re.I)
+    r = re.sub(r"\bALTO, FAROL BAIXO\b|\bMOTO\b", "", r, flags=re.I)
+    pal = [w.upper() if re.search(r"\d", w) else {"pingao": "pingão", "ambar": "âmbar", "polos": "polos"}.get(w.lower(), w.lower()) for w in r.split()]
+    return (" " + " ".join(pal)) if pal else ""
 
 def spec_relacao(desc):
     """'KIT TRANSMISSAO ORING 428HPOX118L/44X15' -> dict(corrente='428H', elos=118, coroa=44, pinhao=15, retentor=True)"""
@@ -118,14 +150,26 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
             spec = f"Coroa {s['coroa']}, pinhão {s['pinhao']}, corrente {s['corrente']} com {s['elos']} elos"
     elif categoria == "ignicao":
         extra = f" {marca} {cod}"; marca = ""
-    elif tipo == "Lâmpada do farol":
+    elif tipo == "Lâmpada do farol" and re.match(r"^lampada farol (alto, farol baixo|moto)", nd):
         g = re.search(r"H4\s*[\d/]+W", nome_real.upper()); extra = f" {g.group(0)}" if g else ""
     elif tipo.startswith("Manete") or tipo == "Retrovisor":
         resto = re.sub(r"^(manete (freio a disco|freio a tambor|embreagem)|retrovisor)\s*", "", nd).strip()
         resto = re.sub(r"haste (\d+)mm", r"haste \1 mm", resto)
+        for de, para in ((r"\ble\b", "lado esquerdo"), (r"\bld\b", "lado direito"), (r"\bartic\b", "articulado"), (r"\bc/mola ret\b", "com mola de retorno"), (r"\b360o\b", "360 graus")):
+            resto = re.sub(de, para, resto)
         extra = f" {resto}" if resto else ""
-    elif "organica" in nd:
+    elif tipo.startswith("Retentor"):
+        spec = _medida(desc)
+        if "guarda po" in nd:
+            extra = " com guarda-pó"
+    elif tipo.startswith("Lona de freio"):
+        spec = ", ".join(x for x in ("Cerâmica, com mola" if "ceramica" in nd else "", "Sobremedida 0,25 mm" if re.search(r"sob ?med", nd) else "") if x)
+    elif tipo.startswith("Lâmpada"):
+        extra = _lampada(desc)
+    if "organica" in nd and not spec:
         spec = "Orgânica"
+    elif "ceramica" in nd and not spec:
+        spec = "Cerâmica"
     motos = resumo_motos(veiculos, primeiro=primeiro)
     nome = f"{tipo}{extra}" + (f" {motos}" if motos else "") + (f" {marca}" if marca else "")
     return re.sub(r"\s+", " ", nome).strip(), spec

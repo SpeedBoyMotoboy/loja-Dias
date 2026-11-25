@@ -163,6 +163,22 @@ def teto_de(nome, apl, tetos):
             return medio
     return None
 
+FORA_NOME = ["bateria 3v", "cr2032"]  # pilha de controle de alarme, não é peça de moto
+# custo na Real muito acima do normal para o tipo de peça (parece caixa fechada ou erro de cadastro): não entra até alguém conferir
+FORA_SKU = {"N1619MO", "12066CP"}
+
+def serve_em_moto(nome, apl):
+    """Fica: peça com pelo menos uma moto na aplicação, ou universal que serve em moto (câmara, bateria, lâmpada, fluido)."""
+    from nomes import familias
+    n, a = norm(nome), norm(apl)
+    if any(w in n for w in FORA_NOME):
+        return False
+    if familias(modelos(apl)):
+        return True
+    if "universal" in a:
+        return "moto" in a or not re.search(r"automov|caminh|utilit|onibus|agricol", a)
+    return False
+
 def categoria(txt):
     t = norm(txt) + " "
     for c, ws in CATS:
@@ -175,7 +191,7 @@ def main():
         return so_kits()
     src = Path(sys.argv[1])
     mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 100
-    saida, vistos, revisao = [], set(), []
+    saida, vistos, revisao, fora = [], set(), [], []
     tetos = carregar_tetos()
     for r in csv.DictReader(open(src, encoding="utf-8-sig")):
         sku = col(r, "codigo", "sku", "cod")
@@ -183,6 +199,19 @@ def main():
         custo = numero(col(r, "preco_custo", "custo", "preco"))
         est = col(r, "estoque", "disponibilidade")
         if not sku or not nome or custo <= 0 or sku in vistos:
+            continue
+        nome = re.sub(r"(\S)- ", r"\1 - ", nome)  # 'FILTRO DO AR MOTOR- JFA0M79 - WEGA'
+        marca_r = col(r, "marca")
+        if "¿" in nome:  # 'PASTILHA DE FREIO DIANTEIRA DIAFRAG DFP-20905 ¿ SISTEMA CBS'
+            desc = re.sub(r"\s+", " ", re.sub(r"\b[A-Z]{2,4}-?\d{3,}\b", "", nome.replace("¿", " ").replace(marca_r, " "))).strip()
+            nome = f"{desc} - {sku} - {marca_r}"
+        elif len(nome.split(" - ")) < 3 and marca_r:  # nome veio sem a marca no fim
+            nome = f"{nome} - {marca_r}"
+        if sku in FORA_SKU:
+            revisao.append(f"{sku};{nome};custo {custo:.2f};custo fora do normal, conferir na Real")
+            continue
+        if not serve_em_moto(nome, col(r, "aplicacao")):  # 25/11: catálogo ampliado só com peça que o cliente sabe em que moto serve
+            fora.append(f"{sku};{nome};{col(r, 'aplicacao')[:80]}")
             continue
         if est and norm(est) in ("0", "indisponivel", "sem estoque", "esgotado", "false", "nao"):
             continue
@@ -216,6 +245,9 @@ def main():
         w.writeheader()
         w.writerows(saida)
     print(f"{len(saida)} peças importadas para dados/produtos.csv")
+    (RAIZ / "dados/fora_sem_moto.txt").write_text("\n".join(fora) + ("\n" if fora else ""), encoding="utf-8")
+    if fora:
+        print(f"{len(fora)} peças ficaram de fora por não terem moto na aplicação: ver dados/fora_sem_moto.txt")
     (RAIZ / "dados/revisao.txt").write_text("\n".join(revisao) + ("\n" if revisao else ""), encoding="utf-8")
     if revisao:
         print(f"{len(revisao)} peças acima do preço médio da concorrência: ver dados/revisao.txt")
