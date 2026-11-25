@@ -535,15 +535,9 @@ def leve_junto(p, ps):
     return out
 
 def ficha(p):
-    """Medidas legíveis. Hoje só o kit relação traz medida no nome da distribuidora."""
-    from nomes import spec_relacao
-    if p["categoria"] != "transmissao":
-        return ""
-    sp = spec_relacao(p["nome_real"].split(" - ")[0])
-    if not sp:
-        return ""
-    return (f'<dt>Coroa</dt><dd>{sp["coroa"]} dentes</dd><dt>Pinhão</dt><dd>{sp["pinhao"]} dentes</dd>'
-            f'<dt>Corrente</dt><dd>{sp["corrente"]}, {sp["elos"]} elos{", com retentor (O-ring)" if sp["retentor"] else ", sem retentor"}</dd>')
+    """Ficha técnica (pedido do Luan 25/11): só dado do nome da Real ou do fabricante; o resto 'Não informado'. Ver ficha.py."""
+    from ficha import linhas
+    return "".join(f'<dt>{e(k)}</dt><dd>{e(v)}</dd>' for k, v in linhas(p))
 
 def kit_lista(p):
     """'O que vem no kit': cada peça com foto, preço dela e a conta no fim. É a 'Produtos do kit' das lojas grandes, com a soma à vista."""

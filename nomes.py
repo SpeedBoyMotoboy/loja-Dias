@@ -207,12 +207,10 @@ def _lampada(desc):
     return (" " + " ".join(pal)) if pal else ""
 
 def spec_relacao(desc):
-    """'KIT TRANSMISSAO ORING 428HPOX118L/44X15' -> dict(corrente='428H', elos=118, coroa=44, pinhao=15, retentor=True)"""
-    g = re.search(r"(\d{3})([A-Z]*?)X(\d{2,3})L?/(\d{2})X(\d{2})", desc.upper().replace(" ", ""))
-    if not g:
-        return None
-    return {"corrente": g.group(1) + ("H" if "H" in g.group(2) else ""), "elos": int(g.group(3)), "coroa": int(g.group(4)), "pinhao": int(g.group(5)),
-            "retentor": bool(re.search(r"O.?RING", desc.upper()))}
+    """'KIT TRANSMISSAO ORING 428HPOX118L/44X15' -> dict(corrente='428H', elos=118, coroa=44, pinhao=15, retentor=True).
+    25/11: antes 'C/RET', 'COM RETENTOR' e '428HOX' saíam como sem retentor; agora a regra fica em ficha.relacao."""
+    from ficha import relacao
+    return relacao(desc)
 
 def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     """Devolve (nome, spec_curta). Se não reconhecer o tipo da peça, devolve o nome antigo (fallback)."""
@@ -242,8 +240,10 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     extra, spec = "", ""
     if categoria == "transmissao" and not generico:
         s = spec_relacao(desc)
+        if s and s["retentor"] and tipo == "Kit relação":
+            tipo = "Kit relação com retentor"  # 'C/RET', 'COM RETENTOR' e '428HOX' também são com retentor
         if s:
-            spec = f"Coroa {s['coroa']}, pinhão {s['pinhao']}, corrente {s['corrente']} com {s['elos']} elos"
+            spec = f"Coroa {s['coroa']}, pinhão {s['pinhao']}, corrente {s['corrente']} com {s['elos']} elos, {'com retentor (O-ring)' if s['retentor'] else 'sem retentor'}"
     elif categoria == "ignicao" and tipo.startswith("Vela"):
         extra = f" {marca} {cod}"; marca = ""
     elif tipo == "Lâmpada do farol" and re.match(r"^lampada farol (alto, farol baixo|moto)", nd):
