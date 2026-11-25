@@ -97,7 +97,7 @@ def linhas(p):
     tem_medida = any(k.lower().startswith(("medida", "altura", "diâmetro", "diametro", "comprimento", "largura", "rosca", "alcance", "sextavado")) for k, _ in fab)
     tem_mat = any(k.lower().startswith(("material", "eletrodo")) for k, _ in fab)
     base = [(k, v) for k, v in base if not ((k == "Medidas" and tem_medida or k == "Material" and tem_mat) and v == NI)]
-    return base + [(k, v) for k, v in fab if k not in ja] + [("Fonte da medida", "Catálogo do fabricante")]
+    return base + [(k, v) for k, v in fab if k not in ja] + [("Fonte", "Catálogo do fabricante")]
 
 
 def _linhas(p):
