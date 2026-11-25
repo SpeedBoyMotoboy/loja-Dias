@@ -136,7 +136,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a></div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a></div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
 <script src="assets/loja.js"></script><script src="assets/app.js"></script>{'<script type="module" src="assets/conta.js"></script>' if FIREBASE and not VITRINE else ""}{tail}'''
@@ -357,6 +357,22 @@ def minha_conta():
     out = head_.replace("<title>", '<meta name="robots" content="noindex"><title>', 1) + topo() + "<main>" + corpo + "</main>" + rodape()
     (DIST / "minha-conta.html").write_text(out, encoding="utf-8")
 
+def privacidade():
+    corpo = f'''<section><div class="wrap prose" style="max-width:760px"><h1>Privacidade</h1>
+<p>Esta página explica, conforme a LGPD (Lei 13.709/2018), quais dados a {e(CFG["nome_loja"])} (CNPJ {e(CFG.get("cnpj",""))}) guarda, para quê e por quanto tempo.</p>
+<h2>Comprar sem conta</h2><p>Criar conta é opcional. Sem conta, o site não guarda nada seu: o carrinho fica só no seu aparelho e o pedido vai direto para o nosso WhatsApp.</p>
+<h2>O que guardamos se você criar conta</h2><ul>
+<li>Do login Google: nome, e-mail e um código interno da conta. Nunca vemos sua senha.</li>
+<li>O que você preencher: nome para entrega, WhatsApp, cidade e endereço.</li>
+<li>Histórico dos seus pedidos: peças, quantidades, valores, data e código do pedido.</li></ul>
+<p>Não guardamos CPF, dados de cartão nem dados bancários. O pagamento é por Pix, feito no app do seu banco.</p>
+<h2>Para quê</h2><p>Só para entregar seus pedidos, preencher o endereço automaticamente e mostrar seu histórico. Não vendemos nem compartilhamos seus dados para propaganda.</p>
+<h2>Onde ficam</h2><p>No Google Firebase (servidor em São Paulo). Cada cliente só consegue ver os próprios dados.</p>
+<h2>Por quanto tempo</h2><p>Enquanto sua conta existir. Você pode apagar tudo quando quiser em <a href="minha-conta.html">Minha conta</a> › Apagar minha conta. Isso apaga seus dados, seu histórico e o acesso de login na hora. Conversas no WhatsApp seguem as regras do WhatsApp.</p>
+<h2>Seus direitos</h2><p>Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento pelo WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
+<p class="note">Versão 1, novembro de 2026.</p></div></section>'''
+    pagina("privacidade.html", "Privacidade | Loja Dias Peças", "Como a Loja Dias Peças trata seus dados (LGPD).", corpo)
+
 def extras(ps):
     hoje = date.today().isoformat()
     urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
@@ -374,6 +390,7 @@ def extras(ps):
     cfg["frete_gratis_acima"] = GRATIS
     if FIREBASE:
         cfg["firebase"] = FIREBASE
+        cfg["appcheck"] = CFG.get("appcheck_site_key", "")
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")
 
 def main():
@@ -385,7 +402,7 @@ def main():
     global VITRINE
     ps = carregar()
     VITRINE = not ps
-    home(ps); home(ps, artifact=True); entrega()
+    home(ps); home(ps, artifact=True); entrega(); privacidade()
     if VITRINE:
         pedido()
     else:

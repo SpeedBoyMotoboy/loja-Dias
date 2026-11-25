@@ -6,7 +6,8 @@ service cloud.firestore {
     match /clientes/{uid} {
       allow read: if dono(uid);
       allow create, update: if dono(uid)
-        && request.resource.data.keys().hasOnly(['nome', 'telefone', 'endereco', 'cidade', 'atualizado'])
+        && request.resource.data.keys().hasOnly(['nome', 'telefone', 'endereco', 'cidade', 'aceite', 'atualizado'])
+        && request.resource.data.aceite == 'v1'
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 80
         && request.resource.data.telefone is string && request.resource.data.telefone.size() <= 20
         && request.resource.data.endereco is string && request.resource.data.endereco.size() <= 200
@@ -19,7 +20,8 @@ service cloud.firestore {
           && request.resource.data.total is number && request.resource.data.total < 100000
           && request.resource.data.itens is list && request.resource.data.itens.size() <= 30
           && request.resource.data.criado == request.time;
-        allow update, delete: if false;  // histórico não muda
+        allow update: if false;  // histórico não muda
+        allow delete: if dono(uid);  // LGPD: apagar minha conta
       }
     }
     match /{doc=**} { allow read, write: if false; }
