@@ -215,30 +215,30 @@ MOTOS = [("CG 160", "pecas-cg-160", ["CG 160"], "Honda"), ("CG 150", "pecas-cg-1
          ("XRE 190", "pecas-xre-190", ["XRE 190"], "Honda"), ("Fazer 250", "pecas-fazer-250", ["Fazer 250"], "Yamaha"),
          ("Lander e Ténéré 250", "pecas-lander-tenere-250", ["Lander 250", "Ténéré 250"], "Yamaha"),
          ("Twister e CB 300", "pecas-twister-cb-300", ["Twister 250", "Twister 300", "CB 300"], "Honda"), ("PCX 150", "pecas-pcx-150", ["PCX 150"], "Honda")]
-# Foto de cada moto (25/11, pedido do Luan). Só entra foto com licença livre (Wikimedia Commons), com crédito em creditos.html.
-# Moto sem foto livre: o Luan escolheu (25/11, cartão de decisão) usar a foto oficial de divulgação da Honda e da Yamaha,
-# sabendo que o fabricante pode pedir para tirar. Se pedirem: apagar o .webp e a linha em FOTOS_OFICIAIS (o card volta ao desenho).
-# slug: (arquivo no Commons, autor, licença, link da licença)
-FOTOS_MOTO = {
-    "cg-150": ("Moto_Honda_Flex_Titan_CG_150_Mix_Fuel_Injection_06_2009_Itu.jpg", "Mariordo (Mario Roberto Duran Ortiz)", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
-    "cg-125": ("CG01.JPG", "Gelsi", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
-    "biz": ("Honda_C100_Biz_049.jpg", "Gnomoazul", "Domínio público", ""),
-    "factor": ("Factor.png", "Mairlonblack", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0"),
-    "xre-300": ("Honda_XRE300_ano2010.jpg", "Borowskki", "Domínio público", ""),
-    "fazer-250": ("YAMAHA_YS250_Fazer_Yamaha_Communication_Plaza.jpg", "PekePON", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
-    "lander-tenere-250": ("Lander250jamil.jpg", "Onjacktallcuca", "Domínio público", ""),
-    "twister-cb-300": ("HONDA_CBX_250_TWISTER.jpg", "Al1997", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
-    "pcx-150": ("Honda_PCX_150_2012_03.jpg", "M.rJirapat", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt-br"),
-}
+# Foto de cada moto (25/11, pedido do Luan). O Luan pediu (25/11) foto do modelo mais novo, 2020 em diante, e liberou foto oficial
+# de divulgação da Honda e da Yamaha, sabendo que o fabricante pode pedir para tirar.
+# Se pedirem: apagar o .webp e a linha em FOTOS_OFICIAIS (o card volta ao desenho).
+# Moto que saiu de linha antes de 2020 (CG 150, CG 125, Bros 150) usa a foto do último modelo que existiu.
+# FOTOS_MOTO fica para foto com licença livre do Wikimedia Commons. slug: (arquivo no Commons, autor, licença, link da licença)
+FOTOS_MOTO = {}
 # slug: (fabricante, modelo que aparece na foto, página de onde veio)
 FOTOS_OFICIAIS = {
-    "cg-160": ("Honda", "CG 160 Titan", "https://www.honda.com.br/motos/street/city/cg160-titan"),
-    "pop": ("Honda", "Pop 110i ES", "https://www.honda.com.br/motos/street/city/pop110i-es"),
-    "bros-160": ("Honda", "NXR 160 Bros", "https://www.honda.com.br/motos/adventure/trail/nxr160-bros"),
-    "bros-150": ("Honda", "NXR 150 Bros 2012 (foto de divulgação da época)", ""),
-    "xre-190": ("Honda", "XRE 190", "https://www.honda.com.br/motos/adventure/trail/xre-190"),
+    "cg-160": ("Honda", "CG 160 Titan (modelo atual)", "https://www.honda.com.br/motos/street/city/cg160-titan"),
+    "cg-150": ("Honda", "CG 150 Titan 2015 (último ano da CG 150)", "https://brosmotoclube.blogspot.com/2014/08/nova-honda-cg-150-titan-2015-vem-com.html"),
+    "cg-125": ("Honda", "CG 125i Fan 2016 a 2018 (última CG 125)", "https://fichatecnica.motosblog.com.br/FichaTecnica/Honda/CG_125_i_FAN_2016"),
+    "biz": ("Honda", "Biz 125 (modelo atual)", "https://www.honda.com.br/motos/street/city/biz125"),
+    "pop": ("Honda", "Pop 110i ES (modelo atual)", "https://www.honda.com.br/motos/street/city/pop110i-es"),
+    "bros-160": ("Honda", "NXR 160 Bros (modelo atual)", "https://www.honda.com.br/motos/adventure/trail/nxr160-bros"),
+    "bros-150": ("Honda", "NXR 150 Bros 2014 (último ano da Bros 150)", "http://patriciahonda.blogspot.com/2013/12/nxr-bros-150-modelo-2014-nas-cores.html"),
+    "xre-300": ("Honda", "XRE 300 2023 (último ano da XRE 300)", "https://www.motoo.com.br/galeria/honda-xre-300-2023-preco-ficha-tecnica-versoes-cores/"),
+    "xre-190": ("Honda", "XRE 190 (modelo atual)", "https://www.honda.com.br/motos/adventure/trail/xre-190"),
+    "twister-cb-300": ("Honda", "CB 300F Twister (modelo atual)", "https://www.honda.com.br/motos/street/naked/cb300f-twister"),
+    "pcx-150": ("Honda", "PCX (modelo atual, motor 160)", "https://www.honda.com.br/motos/street/scooter/pcx"),
+    "factor": ("Yamaha", "Factor 150 (modelo atual)", "https://www.yamaha-motor.com.br/product/factor-759373"),
     "fazer-150": ("Yamaha", "Fazer FZ15 (modelo atual)", "https://www.yamaha-motor.com.br/product/nova-fazer-fz15-abs-connected-770617"),
-    "crosser-150": ("Yamaha", "Crosser 150 Z", "https://www.yamaha-motor.com.br/product/crosser-z-abs-connected-770797"),
+    "fazer-250": ("Yamaha", "Fazer FZ25 (modelo atual)", "https://www.yamaha-motor.com.br/product/fazer-fz25-connected-774117"),
+    "crosser-150": ("Yamaha", "Crosser 150 Z (modelo atual)", "https://www.yamaha-motor.com.br/product/crosser-z-abs-connected-770797"),
+    "lander-tenere-250": ("Yamaha", "Lander 250 (modelo atual)", "https://www.yamaha-motor.com.br/product/lander-connected-150305"),
 }
 MOTO_DESENHO = ('<svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
                 '<circle cx="12" cy="32" r="8.500"/><circle cx="52" cy="32" r="8.500"/>'
@@ -258,12 +258,10 @@ def creditos():
         for n, sl, _, _ in MOTOS for k in [sl.replace("pecas-", "", 1)] if k in FOTOS_MOTO and foto_moto(sl))
     oficiais = "".join(
         f'<li><b>{e(n)}</b>: {e(FOTOS_OFICIAIS[k][1])}, foto de divulgação da {e(FOTOS_OFICIAIS[k][0])}'
-        + (f' (<a href="{FOTOS_OFICIAIS[k][2]}" rel="noopener nofollow">site do fabricante</a>)' if FOTOS_OFICIAIS[k][2] else "") + '.</li>'
+        + (f' (<a href="{FOTOS_OFICIAIS[k][2]}" rel="noopener nofollow">{"site do fabricante" if ("honda.com.br" in FOTOS_OFICIAIS[k][2] or "yamaha-motor.com.br" in FOTOS_OFICIAIS[k][2]) else "página onde a foto foi achada"}</a>)' if FOTOS_OFICIAIS[k][2] else "") + '.</li>'
         for n, sl, _, _ in MOTOS for k in [sl.replace("pecas-", "", 1)] if k in FOTOS_OFICIAIS and foto_moto(sl))
     corpo = f'''<section><div class="wrap prose"><h1>Créditos das fotos</h1>
-<h2>Fotos com uso liberado</h2>
-<p>Estas fotos são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p>
-<ul>{linhas}</ul>
+{f"<h2>Fotos com uso liberado</h2><p>Estas fotos são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p><ul>{linhas}</ul>" if linhas else ""}
 {f"<h2>Fotos de divulgação dos fabricantes</h2><p>Estas fotos pertencem aos fabricantes das motos e aparecem aqui só para identificar o modelo. Se você representa o fabricante e quer que uma foto saia do site, chame no WhatsApp {e(CFG['whatsapp_exibir'])} que a gente tira.</p><ul>{oficiais}</ul>" if oficiais else ""}
 <p>As fotos servem só para você reconhecer o modelo. A Loja Dias não tem ligação com os fabricantes das motos. Honda e Yamaha são marcas dos seus donos.</p></div></section>'''
     pagina("creditos.html", "Créditos das fotos | Loja Dias Peças", "Autores e licenças das fotos de motos usadas no site da Loja Dias.", corpo)
