@@ -186,7 +186,7 @@ def head(title, desc, path, extra_ld=None, artifact=False):
     meta = (f'<title>{e(title)}</title><meta name="description" content="{e(desc)}">'
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
-            f'<meta property="og:locale" content="pt_BR"><meta name="theme-color" content="#1d232a">'
+            f'<meta property="og:locale" content="pt_BR"><meta name="theme-color" content="#002776">'
             f'{FONTS}<link rel="stylesheet" href="assets/style.css">{ld}')
     if artifact:
         return meta
