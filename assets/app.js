@@ -152,7 +152,7 @@
         meta.classList.toggle("ok", falta<=0);
         meta.innerHTML = falta>0
           ? `<span>Faltam ${brl(falta)} para o frete grátis${onde}</span><div class="trilho"><i style="width:${Math.max(6,Math.round(t.sub/alvo*100))}%"></i></div>`
-          : `<span>Frete grátis liberado${onde}${t.city?"":" (Vitória, Vila Velha e Cariacica)"}</span>`;
+          : `<span>Frete grátis liberado${onde}${(t.city||t.sub>=limMax)?"":" (Vitória, Vila Velha e Cariacica)"}</span>`;
         if(falta>0){
           const ordem = ["freio","filtro","ignicao","transmissao","pneu","eletrica","cabo","acessorio"], rank = p => { const i = ordem.indexOf(p.categoria); return i<0?9:i; };  // o que mais se troca vem primeiro
           const no = new Set(t.items.map(i=>i.p.sku)), fams = new Set(t.items.flatMap(i=>i.p.fams||[])), cats = new Set(t.items.map(i=>i.p.categoria));
