@@ -1,0 +1,16 @@
+rules_version = '2';
+// Loja Dias: Storage SÓ para vídeo de avaliação. Precisa do plano Blaze (desligado em 25/11: Luan escolheu só fotos).
+service firebase.storage {
+  match /b/{bucket}/o {
+    function loja() { return request.auth != null && request.auth.token.email_verified == true
+      && request.auth.token.email in ['speedboymotoboy@gmail.com', 'luanvieiradiaas17@gmail.com']; }
+    function av(aid) { return firestore.get(/databases/(default)/documents/avaliacoes/$(aid)).data; }
+    match /avaliacoes/{aid}/video {
+      allow read: if av(aid).status == 'aprovada' || (request.auth != null && av(aid).uid == request.auth.uid) || loja();
+      allow create, update: if request.auth != null && av(aid).uid == request.auth.uid && av(aid).video == true
+        && request.resource.size < 20 * 1024 * 1024 && request.resource.contentType.matches('video/(mp4|quicktime|webm)');
+      allow delete: if (request.auth != null && aid.matches(request.auth.uid + '_.+')) || loja();
+    }
+    match /{all=**} { allow read, write: if false; }
+  }
+}
