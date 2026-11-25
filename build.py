@@ -772,6 +772,12 @@ def carrinho():
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
+<label class="opt" style="margin-top:10px"><input type="checkbox" id="nfq"><span>Preciso de nota fiscal (empresa)<small>Opcional. A nota vai para o e-mail da empresa.</small></span></label>
+<div id="nfbox" hidden>
+<div class="field"><label class="lbl" for="nfcnpj">CNPJ</label><input id="nfcnpj" inputmode="numeric" placeholder="00.000.000/0000-00" maxlength="18"></div>
+<div class="field"><label class="lbl" for="nfrazao">Razão social</label><input id="nfrazao" placeholder="Nome da empresa no CNPJ" maxlength="120" autocomplete="organization"></div>
+<div class="field"><label class="lbl" for="nfmail">E-mail para a nota</label><input id="nfmail" type="email" placeholder="financeiro@empresa.com.br" maxlength="120" autocomplete="email"></div>
+</div>
 {('<fieldset><legend class="lbl">Pagamento</legend>'
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
 '<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
