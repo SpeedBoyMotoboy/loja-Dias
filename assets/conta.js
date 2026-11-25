@@ -31,7 +31,8 @@ async function salvarPerfil(p) {
   const ult = p.ultimas || a.ultimas || {};
   perfil = { nome: txt(p.nome ?? a.nome, 80), telefone: txt(p.telefone ?? a.telefone, 20), endereco: txt(p.endereco ?? a.endereco, 200), cidade: txt(p.cidade ?? a.cidade, 30),
     // fidelidade (Mesa 25/11, opção A): moto, uso e datas das últimas trocas para o lembrete
-    moto: txt(p.moto ?? a.moto, 60), km_dia: num(p.km_dia ?? a.km_dia ?? 0, 0, 1000), intervalo_oleo: num(p.intervalo_oleo ?? a.intervalo_oleo ?? 1000, 300, 10000),
+    moto: txt(p.moto ?? a.moto, 60), km_dia: num(p.km_dia ?? a.km_dia ?? 0, 0, 1000), tipo_oleo: (p.tipo_oleo ?? a.tipo_oleo) === "semi" ? "semi" : "mineral",
+    ...(((p.intervalo_oleo ?? a.intervalo_oleo) || "") !== "" ? { intervalo_oleo: num(p.intervalo_oleo ?? a.intervalo_oleo, 300, 10000) } : {}),  // opcional: vazio = regra do tipo de óleo
     lembrete: !!(p.lembrete ?? a.lembrete),
     ultimas: { oleo: txt(ult.oleo, 10), relacao: txt(ult.relacao, 10), pastilha: txt(ult.pastilha, 10) },
     ...(a.pedidos_pagos !== undefined ? { pedidos_pagos: a.pedidos_pagos } : {}),  // só a loja grava; aqui só preserva
@@ -150,7 +151,8 @@ if (box) {
       <h2 style="margin-top:22px">Minha moto</h2>
       <div class="field"><label class="lbl" for="cmoto">Moto e ano</label><input id="cmoto" placeholder="Ex.: CG 160 Fan 2021"></div>
       <div class="field"><label class="lbl" for="ckm">Quantos km roda por dia</label><input id="ckm" inputmode="numeric" placeholder="Ex.: 120"></div>
-      <div class="field"><label class="lbl" for="cint">Troca o óleo a cada quantos km</label><input id="cint" inputmode="numeric" placeholder="Ex.: 1000"></div>
+      <div class="field"><label class="lbl" for="ctipo">Óleo que você usa</label><select id="ctipo"><option value="mineral">Mineral 20W50 (o mais comum)</option><option value="semi">Semissintético 10W30</option></select></div>
+      <div class="field"><label class="lbl" for="cint">Troca o óleo a cada quantos km (opcional)</label><input id="cint" inputmode="numeric" placeholder="Deixe vazio que a gente calcula"></div>
       <div class="field"><span class="lbl">Últimas trocas</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
         <label>Óleo<input type="date" id="uoleo"></label><label>Relação<input type="date" id="urel"></label><label>Pastilha<input type="date" id="upast"></label></div></div>
       <label class="opt"><input type="checkbox" id="clemb"><span>Quero lembrete no WhatsApp quando chegar a hora da troca<small>Pode desligar quando quiser.</small></span></label>
@@ -162,17 +164,19 @@ if (box) {
       <h2 style="margin-top:28px">Apagar minha conta</h2><p class="note">Apaga seus dados, seu histórico e o login. Não dá para desfazer.</p>
       <button class="btn ghost" type="button" id="capagar">Apagar minha conta</button><p class="err" id="cerr2" hidden></p>`;
     $("#cnome").value = p.nome || ""; $("#ctel").value = p.telefone || ""; $("#ccid").value = p.cidade || ""; $("#cend").value = p.endereco || "";
-    $("#cmoto").value = p.moto || ""; $("#ckm").value = p.km_dia || ""; $("#cint").value = p.intervalo_oleo || "";
+    $("#cmoto").value = p.moto || ""; $("#ckm").value = p.km_dia || ""; $("#cint").value = p.intervalo_oleo || ""; $("#ctipo").value = p.tipo_oleo === "semi" ? "semi" : "mineral";
     const ul = p.ultimas || {}; $("#uoleo").value = ul.oleo || ""; $("#urel").value = ul.relacao || ""; $("#upast").value = ul.pastilha || "";
     $("#clemb").checked = !!p.lembrete;
-    if (p.ultimas && p.ultimas.oleo && p.km_dia && p.intervalo_oleo) {
-      const d = new Date(p.ultimas.oleo + "T12:00:00"); d.setDate(d.getDate() + Math.max(1, Math.floor(p.intervalo_oleo / p.km_dia)));
+    if (p.ultimas && p.ultimas.oleo && p.km_dia) {
+      // mineral: 900 km ou 5 dias; semi: 1.400 km ou 8 dias (o que vier primeiro). Se o cliente digitou o intervalo, vale o dele.
+      const semi = p.tipo_oleo === "semi", km = p.intervalo_oleo || (semi ? 1400 : 900), dias = p.intervalo_oleo ? 999 : (semi ? 8 : 5);
+      const d = new Date(p.ultimas.oleo + "T12:00:00"); d.setDate(d.getDate() + Math.max(1, Math.min(dias, Math.floor(km / p.km_dia))));
       $("#cprox").textContent = `Próxima troca de óleo: por volta de ${d.toLocaleDateString("pt-BR")}.`;
     }
     const faltam = 5 - (pagos() % 6);
     $("#cfid").textContent = freteFidelidade() ? "Seu próximo pedido sai com frete grátis (6º pedido)." : `A cada 5 pedidos pagos, o 6º sai com frete grátis. Faltam ${faltam < 0 ? 0 : faltam}.`;
     $("#csalvar").onclick = async () => { await salvarPerfil({ nome: $("#cnome").value, telefone: $("#ctel").value, cidade: $("#ccid").value, endereco: $("#cend").value,
-      moto: $("#cmoto").value, km_dia: $("#ckm").value, intervalo_oleo: $("#cint").value, lembrete: $("#clemb").checked,
+      moto: $("#cmoto").value, km_dia: $("#ckm").value, intervalo_oleo: $("#cint").value.trim(), tipo_oleo: $("#ctipo").value, lembrete: $("#clemb").checked,
       ultimas: { oleo: $("#uoleo").value, relacao: $("#urel").value, pastilha: $("#upast").value } }); $("#cok").hidden = false; render(); };
     $("#csair").onclick = () => signOut(auth);
     $("#capagar").onclick = async () => {
