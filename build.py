@@ -385,7 +385,7 @@ FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam até as {CFG['entrega_ate']} do mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
  ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
- ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix ao motoboy quando a peça chegar." if NA_ENTREGA else "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido.")),
+ ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix quando o motoboy chegar. Na entrega, o motoboy só entrega a peça depois que o Pix cai na conta da loja. Leva menos de um minuto." if NA_ENTREGA else "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido.")),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
  ("A peça tem garantia?", "Sim. Toda peça é nova e tem garantia de 90 dias contra defeito de fabricação."),
  ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
@@ -475,7 +475,7 @@ def home(ps, artifact=False):
 <section><div class="wrap split"><div><h2>Por tipo de peça</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Escolha a peça</b><span>Busque pelo nome ou pelo modelo do seu veículo. Na dúvida, mande foto no WhatsApp.</span></li>
-<li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. {"Pague no Pix agora ou ao motoboy, na entrega." if NA_ENTREGA else "Pague no Pix copia e cola."}</span></li>
+<li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. {"Pague no Pix agora ou quando o motoboy chegar." if NA_ENTREGA else "Pague no Pix copia e cola."}</span></li>
 <li><b>Receba com o motoboy</b><span>Pedido até {CFG["corte_mesmo_dia"]}: entrega até as {CFG["entrega_ate"]} do mesmo dia. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
 <section><div class="wrap"><h2>Frete por cidade</h2>{tabela_frete()}</div></section>
 <section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
@@ -502,7 +502,7 @@ def confianca():
     """O que loja nova precisa mostrar perto do botão: quem entrega, o que acontece se não servir, garantia e CNPJ."""
     itens = [f"Entrega pelo motoboy da loja. Pedido até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']}"]
     if NA_ENTREGA:
-        itens.append("Pague no Pix só quando a peça chegar, se preferir")
+        itens.append("Se preferir, pague o Pix quando o motoboy chegar")
     itens += ["Não serviu? O motoboy busca e troca em até 7 dias", GARANTIA,
               f"Loja de {CFG['cidade_base']}, CNPJ {CFG.get('cnpj','')}"]
     return '<ul class="trust">' + "".join(f"<li>{e(t)}</li>" for t in itens) + "</ul>"
@@ -743,6 +743,8 @@ def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
 <p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam até as {CFG["entrega_ate"]} do mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
 {tabela_frete()}
+{('<h2 style="margin-top:28px">Pagamento</h2><p>Só Pix. Você paga na hora do pedido, com o Pix copia e cola do valor exato, ou quando o motoboy chegar.</p>'
+ '<p><b>Pagando na entrega:</b> o motoboy chega, você faz o Pix para a loja e ele entrega a peça assim que o Pix aparecer na conta da loja. Print de comprovante não vale, a confirmação é no banco da loja. Leva menos de um minuto. Não aceitamos dinheiro nem cartão.</p>') if NA_ENTREGA else '<h2 style="margin-top:28px">Pagamento</h2><p>Só Pix, com o Pix copia e cola do valor exato do pedido.</p>'}
 <h2 style="margin-top:28px">Peças grandes</h2><p>Peças que não cabem no baú da moto, como escapamento, para-choque e par de amortecedores, são combinadas pelo WhatsApp para retirada ou frete de carro.</p></div></section>'''
     pagina("entrega.html", "Entrega e fretes na Grande Vitória | Loja Dias Peças",
            "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.", corpo)
@@ -758,7 +760,7 @@ def carrinho():
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
 {('<fieldset><legend class="lbl">Pagamento</legend>'
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
-'<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga ao motoboy quando a peça chegar</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
+'<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
 <p class="err" id="err" hidden></p>
 <div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
 <a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
