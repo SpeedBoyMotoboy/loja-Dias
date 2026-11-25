@@ -214,6 +214,7 @@ def spec_relacao(desc):
 
 def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     """Devolve (nome, spec_curta). Se não reconhecer o tipo da peça, devolve o nome antigo (fallback)."""
+    nome_real = re.sub(r"\bTRASEIR\b", "TRASEIRA", nome_real, flags=re.I)  # a Real corta a palavra em alguns cadastros
     nome_real = re.sub(r"\bSNAP ?- ?ON\b( \(CAR ?80\))?", "SNAP-ON", nome_real, flags=re.I)  # 'SNAP - ON' quebrava a marca em 'ON'
     partes = [x.strip() for x in nome_real.split(" - ")]
     if len(partes) < 3:
@@ -229,7 +230,7 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     g = re.match(r"^oleo fluido de freio (dot\d)( lv classe 6)? ?(\d+) ?ml", nd)
     if g:
         return f"Fluido de freio {g.group(1).upper()}{' LV classe 6' if g.group(2) else ''} {g.group(3)} ml {marca}", ""
-    g = re.match(r"^bateria (premium )?(\d+)ah", nd)
+    g = re.match(r"^bateria (premium )?(\d+(?:[.,]\d+)?) ?ah", nd)
     if g:
         return f"Bateria de moto {g.group(2)}Ah 12V {marca} {cod}", ("Linha premium" if g.group(1) else "")
     generico = not tipo

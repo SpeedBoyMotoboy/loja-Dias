@@ -68,12 +68,13 @@ def icon(cat):
     return f'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">{ICON.get(cat, ICON["filtro"])}</svg>'
 
 # Margem (Mesa Loja, Pauta 1, 24/11/2026): tabela base por faixa de custo; itens-isca entre x1,25 e x1,35;
-# teto = 10% acima do preço médio do Mercado Livre (coluna ml_medio, quando houver);
-# se depois do teto a margem ficar abaixo de 20% sobre o custo, a peça não entra no site.
+# teto (Mesa 25/11/2026, Pauta 3) = preço médio da MESMA marca/linha na concorrência (coluna ml_medio, quando houver) + R$ 10
+# de conveniência; se depois do teto a margem ficar abaixo de 20% sobre o custo, a peça não entra no site.
 MARGEM = [(30, 1.8), (100, 1.6), (250, 1.45), (float("inf"), 1.3)]
 ISCA = 1.30
 ISCA_PALAVRAS = ["oleo", "camara", "vela", "pastilha", "relacao cg 160", "kit relacao cg", "kit transmissao cg"]
 MARGEM_MIN = 0.20
+TETO_FOLGA = 10.0
 LUCRO_MIN_CARRINHO = 8.0  # peça com lucro menor só vai junto com outra (ou carrinho >= frete grátis)
 
 def _n(s):
@@ -94,7 +95,7 @@ def preco_de_custo(custo, categoria, nome="", ml_medio=None):
     f = ISCA if eh_isca(nome) else next(m for lim, m in MARGEM if custo <= lim)
     p = max(_noventa(custo * f), 9.90)
     if ml_medio:
-        teto = ml_medio * 1.10
+        teto = ml_medio + TETO_FOLGA
         if p > teto:
             p = _noventa(teto - 1) if _noventa(teto - 1) <= teto else round(teto, 2)
     if p < custo * (1 + MARGEM_MIN):

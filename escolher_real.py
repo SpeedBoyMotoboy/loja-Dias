@@ -12,7 +12,7 @@ import csv, collections, re, statistics, sys
 from pathlib import Path
 RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
-from importar_real import serve_em_moto, modelos, categoria, FORA_SKU, norm
+from importar_real import serve_em_moto, modelos, categoria, FORA_SKU, norm, estoque_min
 from nomes import familias
 from build import preco_de_custo
 
@@ -39,8 +39,8 @@ for r in rs:
     custo = float(r["preco_custo"] or 0)
     if r["disponibilidade"] != "Disponível" or est < 1 or custo <= 0:
         motivo["sem estoque ou sem preço"] += 1; continue
-    if est < EMIN:
-        motivo[f"estoque abaixo de {EMIN}"] += 1; continue
+    if est < min(EMIN, estoque_min(nome)):  # Mesa 25/11: 5 na curva A, 10 no resto
+        motivo["estoque abaixo do mínimo (5 na curva A, 10 no resto)"] += 1; continue
     if "¿" in nome:
         pass
     elif len(nome.split(" - ")) < 3 and r["marca"]:
@@ -112,5 +112,5 @@ print("faltaram das atuais:", sorted(atual - {c["codigo"] for c in esc})[:30])
 for k, v in motivo.most_common(): print(f"  fora: {v:5d} {k}")
 print("por categoria:", collections.Counter(c["cat"] for c in esc).most_common())
 print("por tipo (top 40):", collections.Counter(c["tipo"] for c in esc).most_common(40))
-print("estoque: >=20", sum(c["est"] >= 20 for c in esc), "| 10-19", sum(10 <= c["est"] < 20 for c in esc), "| 5-9", sum(c["est"] < 10 for c in esc))
+print("estoque: >=20", sum(c["est"] >= 20 for c in esc), "| 10-19", sum(10 <= c["est"] < 20 for c in esc), "| 5-9", sum(c["est"] < 10 for c in esc), [(c["codigo"], c["est"]) for c in esc if c["est"] < 10][:60])
 print("revisao:", [(c["codigo"], c["nome"][:40], c["custo"]) for c in revisao][:15])

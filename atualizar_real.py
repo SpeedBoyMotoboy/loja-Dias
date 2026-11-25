@@ -9,7 +9,8 @@ Saída: dados/varredura.txt (relatório curto para o Luan) e código de saída 2
 
 Regras:
 - Preço de venda continua saindo do custo pela regra de margem do build.py (lucro mínimo, 20% de margem mínima).
-- Estoque na Real abaixo de 3: a peça sai do site (vai para pausados.csv). Volta sozinha quando a Real tiver 10 ou mais.
+- Estoque na Real abaixo de 3: a peça sai do site (vai para pausados.csv). Volta sozinha quando a Real tiver 10 ou mais
+  (5 ou mais na curva A: relação, pastilha, lona, bateria e câmara; Mesa de 25/11).
 - Peça que a varredura não achou: fica no site como está (pode ser falha do robô), mas entra no relatório.
 - Se a varredura achou menos de 80% das peças do site, nada é mudado (robô provavelmente falhou ou o login caiu).
 - Custo que subiu mais de 10% entra no relatório. Kits são refeitos com os custos novos (lucro mínimo R$ 8).
@@ -19,7 +20,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
-from importar_real import CAMPOS, montar_kits, numero
+from importar_real import CAMPOS, montar_kits, numero, estoque_min
 from build import preco_de_custo
 
 SAI, VOLTA, ALTA, COBERTURA = 3, 10, 0.10, 0.80
@@ -87,7 +88,7 @@ def main():
     resto = []
     for r in pausados:
         custo, est = real.get(r["sku"], (0, None))
-        if custo > 0 and est is not None and est >= VOLTA and preco(r, custo) is not None:
+        if custo > 0 and est is not None and est >= min(VOLTA, estoque_min(r["nome"])) and preco(r, custo) is not None:
             volta.append(dict(r, custo=f"{custo:.2f}", estoque=str(est)))
         else:
             resto.append(r)
@@ -103,7 +104,7 @@ def main():
     if sai:
         rel.append(f"Saíram do site (estoque da Real abaixo de {SAI} ou sem margem): {len(sai)}: " + ", ".join(r["sku"] for r in sai[:30]))
     if volta:
-        rel.append(f"Voltaram ao site (Real com {VOLTA}+ de estoque): {len(volta)}: " + ", ".join(r["sku"] for r in volta[:30]))
+        rel.append(f"Voltaram ao site (Real com {VOLTA}+ de estoque, ou 5+ na curva A): {len(volta)}: " + ", ".join(r["sku"] for r in volta[:30]))
     if altas:
         rel.append(f"Custo subiu mais de 10% ({len(altas)}); o preço do site subiu junto:")
         rel += ["  " + a for a in altas[:30]]
