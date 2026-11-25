@@ -51,5 +51,13 @@
   "cnpj": "46.178.859/0001-96",
   "frete_gratis_acima": 49.9,
   "entrega_ate": "18h",
-  "so_moto": true
+  "so_moto": true,
+  "firebase": {
+    "apiKey": "AIzaSyDJawjGeT5J9i5LzR2-l1qGDvG3MBug8dQ",
+    "authDomain": "loja-dias-7163.firebaseapp.com",
+    "projectId": "loja-dias-7163",
+    "storageBucket": "loja-dias-7163.firebasestorage.app",
+    "messagingSenderId": "696872279122",
+    "appId": "1:696872279122:web:8d4426f275d38b7758d38b"
+  }
 }
