@@ -335,6 +335,28 @@ def card(p, foco=()):
 <div class="row"><div class="price">{f'<s>{brl(p["separado"])}</s>' if kit and p["economia"] > 0 else ""}{brl(p["preco"])}<small>no Pix</small></div>
 <button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(p["nome"])} ao carrinho">Adicionar</button></div></div></article>'''
 
+def painel_mais(pecas, titulo, rodape, foco=()):
+    """Painel da primeira tela: até 4 peças com foto, preço e botão Adicionar (home e página da moto)."""
+    linhas = ""
+    for p in pecas[:4]:
+        nome = p.get("titulo") or p["nome"]
+        if foco and p["categoria"] != "kit":
+            nome = nome_por_moto(p["nome_real"], p["categoria"], p["veiculos"], p["nome"], primeiro=foco)[0]
+        linhas += (f'<li><a class="mvf" href="{p["url"]}" tabindex="-1"><img src="{p["fotos"][0]}" alt="" width="72" height="72"></a>'
+                   f'<a class="mvn" href="{p["url"]}">{e(nome)}</a>'
+                   f'<span class="mvp">{brl(p["preco"])}<small>no Pix</small></span>'
+                   f'<button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(nome)} ao carrinho">Adicionar</button></li>')
+    return f'<aside class="maisv" aria-labelledby="mvh"><h2 id="mvh">{e(titulo)}</h2><ul>{linhas}</ul>{rodape}</aside>' if linhas else ""
+
+def uma_por_tipo(pecas, n=4):
+    """Uma peça de cada tipo, na ordem em que vieram (giro), só com foto. Completa com as seguintes se faltar."""
+    out, vistos = [], set()
+    for p in pecas:
+        if p["fotos"] and p["categoria"] != "kit" and p["categoria"] not in vistos:
+            out.append(p); vistos.add(p["categoria"])
+    out += [p for p in pecas if p["fotos"] and p["categoria"] != "kit" and p not in out]
+    return out[:n]
+
 def tabela_frete():
     if not FRETE_OK:
         rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
@@ -404,7 +426,9 @@ def home(ps, artifact=False):
     if SO_MOTO:  # uma peça de cada tipo, na ordem do giro; antes eram 8 kits de relação seguidos
         destaque, vistos = [], set()
         for cat in ("transmissao", "freio", "filtro", "ignicao", "eletrica", "cabo", "pneu", "acessorio"):
-            x = next((p for p in ps if p["categoria"] == cat and p["fotos"]), None)
+            # kit relação: o da CG 160 vem primeiro (moto que mais roda e nosso melhor preço contra as lojas grandes)
+            x = (next((p for p in ps if cat == "transmissao" and p["categoria"] == cat and p["fotos"] and "CG 160" in p.get("fams", [])), None)
+                 or next((p for p in ps if p["categoria"] == cat and p["fotos"]), None))
             if x: destaque.append(x); vistos.add(x["sku"])
         for p in ps:  # completa com a segunda mais vendida de relação e freio
             if len(destaque) >= 12: break
@@ -418,17 +442,12 @@ def home(ps, artifact=False):
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     # Primeira tela (25/11, cenário do Luan): peça com foto, preço e botão aparecem sem rolar, no celular e no PC.
     topo4, destaque = destaque[:4], destaque[4:] or destaque
-    linhas = "".join(
-        f'<li><a class="mvf" href="{p["url"]}" tabindex="-1"><img src="{p["fotos"][0]}" alt="" width="72" height="72"></a>'
-        f'<a class="mvn" href="{p["url"]}">{e(p.get("titulo") or p["nome"])}</a>'
-        f'<span class="mvp">{brl(p["preco"])}<small>no Pix</small></span>'
-        f'<button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(p["nome"])} ao carrinho">Adicionar</button></li>' for p in topo4 if p["fotos"])
     corpo = f'''<div class="hero hero2"><div class="wrap">
 <div class="hl"><h1>Peça de moto e carro na sua porta, hoje</h1>
 <p><span class="pc">Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. {"Pague no Pix, agora ou na entrega." if NA_ENTREGA else "Pagamento no Pix."}</span><span class="cel">Motoboy entrega no mesmo dia na Grande Vitória.</span></p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de ar Bros" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
 <div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span></div></div>
-<aside class="maisv" aria-labelledby="mvh"><h2 id="mvh">Mais procuradas</h2><ul>{linhas}</ul><a class="mvt" href="catalogo.html">Ver todas as {len(ps)} peças</a></aside>
+{painel_mais(topo4, "Mais procuradas", f'<a class="mvt" href="catalogo.html">Ver todas as {len(ps)} peças</a>')}
 <div class="chips c2">{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span><span class="chip"><i></i>Troca em 7 dias</span><span class="chip"><i></i>Garantia de 90 dias</span></div>
 </div></div>
 {"" if SO_MOTO else PORTAS}
@@ -640,11 +659,14 @@ def pagina_moto(nome, sl, fams, marca, ps):
         if p["categoria"] != "kit" and t not in tipos: tipos.append(t)
     lista = ", ".join(tipos[:5])
     outras = "".join(f'<a href="{s2}.html">{e(n2)}</a>' for n2, s2, _, _ in MOTOS_ATIVAS if s2 != sl)
-    corpo = f'''<div class="hero heromoto"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
+    painel = painel_mais(uma_por_tipo(proprias), f"Mais procuradas da {nome}", f'<a class="mvt" href="#todas">Ver as {len(proprias)} peças da {e(nome)}</a>', fams)
+    corpo = f'''<div class="hero hero2 heromoto"><div class="wrap"><div class="hl"><h1>Peças para {e(nome)} com entrega hoje</h1>
 <p><span class="pc">{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</span><span class="cel">{len(proprias)} peças que servem na {e(marca)} {e(nome)}. Motoboy entrega no mesmo dia na Grande Vitória.</span></p>
-<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span></div></div></div>
+<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span></div></div>
+{painel}
+<div class="chips c2">{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span><span class="chip"><i></i>Troca em 7 dias</span></div></div></div>
 {f'<section class="kitsmoto"><div class="wrap"><h2>Kits prontos para a {e(nome)}</h2><p class="note">Peças que se trocam juntas, já separadas. O kit sai mais barato que comprar uma por uma.</p><div class="grid">{"".join(card(p, fams) for p in kits)}</div></div></section>' if kits else ""}
-<section{' style="padding-top:0"' if kits else ""}><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
+<section{' style="padding-top:0"' if kits else ""}><div class="wrap"><h2 id="todas">Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
 {f'<section style="padding-top:0"><div class="wrap"><h2>Servem em qualquer moto</h2><div class="grid">{"".join(card(p) for p in gerais)}</div></div></section>' if gerais else ""}
 <section style="padding-top:0"><div class="wrap prose"><h2>Não achou a peça da sua {e(nome)}?</h2><p>Mande o ano da moto e a peça no WhatsApp {e(CFG["whatsapp_exibir"])}. A gente confere na distribuidora e responde com o preço.</p>
 <h2 style="margin-top:28px">Outras motos</h2><div class="cats">{outras}</div></div></section>'''
