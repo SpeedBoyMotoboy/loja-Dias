@@ -5,6 +5,7 @@ Uso: python3 build.py            -> gera dist/
 Cada página é HTML pronto (rápido e legível pelo Google), com dados estruturados,
 sitemap.xml, robots.txt e feed de produtos para o Google Merchant Center.
 """
+from urllib.parse import quote
 import csv, json, re, shutil, unicodedata, html
 from datetime import date
 from pathlib import Path
@@ -142,7 +143,23 @@ def topo():
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Carro</a>'}
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>{'<a id="contalink" href="minha-conta.html">Entrar</a>' if FIREBASE and not VITRINE else ""}
-{'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>'''
+{'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>{catbar()}'''
+
+# Luan 24/11: no lugar da faixa pontilhada, atalhos de categoria e as motos que mais saem (pesquisa de giro, CG primeiro).
+ATALHOS = [("Kits prontos", "catalogo.html?cat=kit"), ("Freio dianteiro", "catalogo.html?cat=freio&q=dianteira"),
+           ("Freio traseiro", "catalogo.html?cat=freio&q=traseira"), ("Fluido de freio", "catalogo.html?cat=freio&q=fluido"),
+           ("Relação", "catalogo.html?cat=transmissao"), ("Filtros", "catalogo.html?cat=filtro"), ("Vela", "catalogo.html?cat=ignicao"),
+           ("Câmara e pneu", "catalogo.html?cat=pneu"), ("Bateria e lâmpada", "catalogo.html?cat=eletrica"),
+           ("Cabos", "catalogo.html?cat=cabo"), ("Retrovisor e manete", "catalogo.html?cat=acessorio")]
+MOTOS_BARRA = ["CG 160", "CG 150", "CG 125", "Biz", "Pop", "Bros", "Fazer", "XRE", "Factor", "PCX"]
+
+def catbar():
+    if VITRINE:
+        return ""
+    a = "".join(f'<a href="{u}">{e(t)}</a>' for t, u in ATALHOS)
+    m = "".join(f'<a class="moto" href="catalogo.html?q={quote(n)}">{e(n)}</a>' for n in MOTOS_BARRA)
+    return (f'<nav class="catbar" aria-label="Categorias e motos"><div class="wrap">'
+            f'<div class="rail">{a}</div><div class="rail motos"><span class="lbl2">Sua moto</span>{m}</div></div></nav>')
 
 def lk(t):
     return f"pedido.html?tipo={t}" if VITRINE else f"catalogo.html?tipo={t}"
@@ -204,10 +221,34 @@ def pagina(path, title, desc, corpo, ld=None, artifact=False):
     out = head(title, desc, path, ld, artifact) + topo() + "<main>" + corpo + "</main>" + rodape(artifact)
     (DIST / path).write_text(out, encoding="utf-8")
 
+def black_friday(ps, destaque):
+    """Faixa Black Friday: só desconto real (kit sai mais barato que as peças separadas). Banner do Google Flow é opcional."""
+    if not CFG.get("black_friday"):
+        return ""
+    kits = [p for p in ps if p["categoria"] == "kit"]
+    ja = {p["sku"] for p in destaque}
+    extra, usadas = [], set()  # uma peça por categoria, para a faixa não ficar só de pastilha
+    for p in ps:
+        if p["categoria"] != "kit" and p["sku"] not in ja and p["fotos"] and p["categoria"] not in usadas and len(extra) < 8 - len(kits):
+            extra.append(p); usadas.add(p["categoria"])
+    def kcard(p):
+        m = re.search(r"separado \(R\$ ([\d.]+)\)", p["descricao"])
+        c = card(p)
+        if m and float(m.group(1)) > p["preco"]:
+            sep = float(m.group(1))
+            c = c.replace('<div class="row">', f'<div class="save">Separado sai {brl(sep)}. No kit você economiza {brl(sep - p["preco"])}.</div><div class="row">', 1)
+        return c
+    banner = (f'<img class="bfimg" src="img/banner-black-friday.webp" alt="" width="1920" height="480">'
+              if (RAIZ / "img/banner-black-friday.webp").exists() else "")
+    return f'''<section class="bf" aria-labelledby="bft"><div class="wrap">{banner}
+<div class="bfhead"><h2 id="bft">Black Friday</h2><p>Kits prontos mais baratos que comprar as peças separadas. Frete grátis acima de {brl(GRATIS)} e entrega até as {CFG["entrega_ate"]} para pedido até {CFG["corte_mesmo_dia"]}.</p></div>
+<div class="grid">{"".join(kcard(p) for p in kits)}{"".join(card(p) for p in extra)}</div>
+<p><a class="btn" href="catalogo.html?cat=kit">Ver todos os kits</a></p></div></section>'''
+
 def home(ps, artifact=False):
     if VITRINE:
         return home_vitrine(artifact)
-    destaque = [p for p in ps if p["tipo"] == "moto"][:8] if SO_MOTO else [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
+    destaque = [p for p in ps if p["tipo"] == "moto" and not (CFG.get("black_friday") and p["categoria"] == "kit")][:8] if SO_MOTO else [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     corpo = f'''<div class="hero"><div class="wrap">
 <span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
@@ -219,6 +260,7 @@ def home(ps, artifact=False):
 <section><div class="wrap split">
 <a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>{"" if SO_MOTO else '\n<a class="door" href="catalogo.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria e correia para Onix, HB20, Gol, Argo e mais.</span></a>'}
 </div></section>
+{black_friday(ps, destaque)}
 <section style="padding-top:0"><div class="wrap"><h2>Mais procuradas</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
 <p><a class="btn dark" href="catalogo.html">Ver todas as peças</a></p></div></section>
 <section><div class="wrap split"><div><h2>Moto</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>

@@ -30,7 +30,7 @@ h2{font-size:clamp(26px,4vw,34px);margin:0 0 14px}
 
 /* topo */
 .top{background:var(--road);color:var(--road-ink);position:relative}
-.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:repeating-linear-gradient(90deg,var(--accent) 0 38px,transparent 38px 64px)}
+.top:not(:has(+ .catbar))::after,.catbar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:repeating-linear-gradient(90deg,var(--accent) 0 38px,transparent 38px 64px)}
 .top .wrap{padding-block:14px 19px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
 .logo{font-family:var(--display);font-weight:800;font-size:28px;text-transform:uppercase;text-decoration:none;line-height:1}
 .logo span{color:var(--accent)}
@@ -155,3 +155,30 @@ footer a:hover{color:var(--accent)}
 .thumb{width:72px;height:54px;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:contain}
 .thumb[aria-pressed="true"]{outline:2px solid #f2b705}
+
+/* barra de atalhos: continua o asfalto do topo, a faixa pontilhada passa embaixo dela */
+.top:has(+ .catbar) .wrap{padding-bottom:12px}
+.catbar{background:var(--road);color:var(--road-ink);position:relative;padding-bottom:5px}
+.catbar .wrap{display:grid;gap:8px;padding-block:2px 12px}
+.catbar .rail{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:center;scroll-snap-type:x proximity}
+.catbar .rail::-webkit-scrollbar{display:none}
+.catbar a{flex:0 0 auto;scroll-snap-align:start;padding:7px 13px;border-radius:8px;background:#2a323b;color:var(--road-ink);text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap;min-height:36px;display:inline-flex;align-items:center}
+.catbar a:hover{background:var(--accent);color:var(--accent-ink)}
+.catbar .motos a{background:transparent;border:1.5px solid var(--accent);color:var(--accent);font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:.3px;padding:4px 12px;border-radius:999px}
+.catbar .motos a:hover{background:var(--accent);color:var(--accent-ink)}
+.catbar .lbl2{flex:0 0 auto;color:var(--road-muted);font-size:13px;margin-right:2px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .catbar a:not(.moto){background:#1b2127}}
+:root[data-theme="dark"] .catbar a:not(.moto){background:#1b2127}
+
+/* Black Friday: fita de obra (amarelo e asfalto) em cima e embaixo */
+.bf{background:var(--road);color:var(--road-ink);padding-block:34px 30px;margin-block:8px 28px;position:relative}
+.bf::before,.bf::after{content:"";position:absolute;left:0;right:0;height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,var(--road) 14px 28px)}
+.bf::before{top:0}.bf::after{bottom:0}
+.bf .bfimg{width:100%;height:auto;aspect-ratio:4/1;object-fit:cover;border-radius:12px;margin-bottom:18px;display:block}
+.bf .bfhead{display:grid;gap:6px;margin-bottom:18px;max-width:62ch}
+.bf .bfhead h2{color:var(--accent);font-size:clamp(44px,9vw,84px);font-weight:800;margin:0;line-height:.9}
+.bf .bfhead p{color:var(--road-muted);margin:0;font-size:17px}
+.bf .card{color:var(--ink)}
+.bf .save{font-size:13px;font-weight:600;color:var(--ok);margin:4px 0 2px}
+.bf p:last-child{margin:18px 0 0}
+@media (max-width:640px){.bf .grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-inline:-16px;padding-inline:16px;scroll-padding-inline:16px;scrollbar-width:none}.bf .grid::-webkit-scrollbar{display:none}.bf .grid .card{flex:0 0 78%;scroll-snap-align:start}}
