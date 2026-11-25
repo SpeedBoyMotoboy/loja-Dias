@@ -191,7 +191,7 @@ def head(title, desc, path, extra_ld=None, artifact=False):
 
 def topo():
     demo = '<div class="demo">Prévia: peças, preços e fretes são exemplos. O catálogo real virá das distribuidoras.</div>' if DEMO else ""
-    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} (Serra e Viana: acima de R$ 89,90)</div>' if GRATIS and FRETE_OK else ""
+    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} <span class="demo2">(Serra e Viana: <span class="pc">acima de </span>R$ 89,90)</span></div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Carro</a>'}
@@ -276,7 +276,12 @@ def catbar():
         return ""
     a = "".join(f'<a href="{u}">{e(t)}</a>' for t, u in ATALHOS)
     m = "".join(f'<a class="moto" href="{sl}.html">{e(n)}</a>' for n, sl, _, _ in MOTOS_ATIVAS) or "".join(f'<a class="moto" href="catalogo.html?q={quote(n)}">{e(n)}</a>' for n in MOTOS_BARRA)
-    return (f'<nav class="catbar" aria-label="Categorias e motos"><div class="wrap">'
+    vai = 'onchange="if(this.value){var u=this.value;this.selectedIndex=0;location.href=u}"'  # volta para a primeira opção: ao voltar a página, a lista não fica presa
+    escolhas = (f'<div class="pick"><select aria-label="Escolha a sua moto" {vai}><option value="">Qual é a sua moto?</option>'
+                + "".join(f'<option value="{sl}.html">{e(n)}</option>' for n, sl, _, _ in MOTOS_ATIVAS)
+                + f'</select><select aria-label="Escolha o tipo de peça" {vai}><option value="">Tipo de peça</option>'
+                + "".join(f'<option value="{e(u)}">{e(t)}</option>' for t, u in ATALHOS) + '</select></div>') if MOTOS_ATIVAS else ""
+    return (f'<nav class="catbar{" tem-pick" if escolhas else ""}" aria-label="Categorias e motos"><div class="wrap">{escolhas}'
             f'<div class="rail">{a}</div><div class="rail motos"><span class="lbl2">Sua moto</span>{m}</div></div></nav>')
 
 def lk(t):
@@ -399,7 +404,7 @@ def home(ps, artifact=False):
             x = next((p for p in ps if p["categoria"] == cat and p["fotos"]), None)
             if x: destaque.append(x); vistos.add(x["sku"])
         for p in ps:  # completa com a segunda mais vendida de relação e freio
-            if len(destaque) >= 8: break
+            if len(destaque) >= 12: break
             if p["sku"] not in vistos and p["categoria"] in ("transmissao", "freio") and p["fotos"]:
                 destaque.append(p); vistos.add(p["sku"])
     else:
@@ -408,16 +413,24 @@ def home(ps, artifact=False):
         f'<a href="{sl}.html"><span class="mf">{f"""<img src="{foto_moto(sl)}" alt="{e(marca)} {e(n)}" width="480" height="360" loading="lazy">""" if foto_moto(sl) else MOTO_DESENHO}</span>'
         f'<span class="mt"><b>{e(n)}</b><span>{len(pecas_da_moto(ps, fams))} peças</span></span></a>' for n, sl, fams, marca in MOTOS_ATIVAS)
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
-    corpo = f'''<div class="hero"><div class="wrap">
-<span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
-<h1>Peça de moto e carro na sua porta, hoje</h1>
-<p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. {"Pague no Pix, agora ou na entrega." if NA_ENTREGA else "Pagamento no Pix."}</p>
+    # Primeira tela (25/11, cenário do Luan): peça com foto, preço e botão aparecem sem rolar, no celular e no PC.
+    topo4, destaque = destaque[:4], destaque[4:] or destaque
+    linhas = "".join(
+        f'<li><a class="mvf" href="{p["url"]}" tabindex="-1"><img src="{p["fotos"][0]}" alt="" width="72" height="72"></a>'
+        f'<a class="mvn" href="{p["url"]}">{e(p.get("titulo") or p["nome"])}</a>'
+        f'<span class="mvp">{brl(p["preco"])}<small>no Pix</small></span>'
+        f'<button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(p["nome"])} ao carrinho">Adicionar</button></li>' for p in topo4 if p["fotos"])
+    corpo = f'''<div class="hero hero2"><div class="wrap">
+<div class="hl"><h1>Peça de moto e carro na sua porta, hoje</h1>
+<p><span class="pc">Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. {"Pague no Pix, agora ou na entrega." if NA_ENTREGA else "Pagamento no Pix."}</span><span class="cel">Motoboy entrega no mesmo dia na Grande Vitória.</span></p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de ar Bros" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
-<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span><span class="chip"><i></i>Troca em 7 dias</span><span class="chip"><i></i>Garantia de 90 dias</span></div>
+<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span></div></div>
+<aside class="maisv" aria-labelledby="mvh"><h2 id="mvh">Mais procuradas</h2><ul>{linhas}</ul><a class="mvt" href="catalogo.html">Ver todas as {len(ps)} peças</a></aside>
+<div class="chips c2">{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span><span class="chip"><i></i>Troca em 7 dias</span><span class="chip"><i></i>Garantia de 90 dias</span></div>
 </div></div>
 {"" if SO_MOTO else PORTAS}
 {black_friday(ps, destaque)}
-<section style="padding-top:0"><div class="wrap"><h2>Mais procuradas</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
+<section style="padding-top:0"><div class="wrap"><h2>Também saem muito</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
 <p><a class="btn dark" href="catalogo.html">Ver todas as peças</a></p></div></section>
 {f'<section><div class="wrap"><h2>Peças para a sua moto</h2><div class="mototiles">{motos_tiles}</div></div></section>' if motos_tiles else ""}
 <section><div class="wrap split"><div><h2>Por tipo de peça</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>
@@ -624,8 +637,8 @@ def pagina_moto(nome, sl, fams, marca, ps):
         if p["categoria"] != "kit" and t not in tipos: tipos.append(t)
     lista = ", ".join(tipos[:5])
     outras = "".join(f'<a href="{s2}.html">{e(n2)}</a>' for n2, s2, _, _ in MOTOS_ATIVAS if s2 != sl)
-    corpo = f'''<div class="hero"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
-<p>{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</p>
+    corpo = f'''<div class="hero heromoto"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
+<p><span class="pc">{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</span><span class="cel">{len(proprias)} peças que servem na {e(marca)} {e(nome)}. Motoboy entrega no mesmo dia na Grande Vitória.</span></p>
 <div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span></div></div></div>
 {f'<section class="kitsmoto"><div class="wrap"><h2>Kits prontos para a {e(nome)}</h2><p class="note">Peças que se trocam juntas, já separadas. O kit sai mais barato que comprar uma por uma.</p><div class="grid">{"".join(card(p, fams) for p in kits)}</div></div></section>' if kits else ""}
 <section{' style="padding-top:0"' if kits else ""}><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
