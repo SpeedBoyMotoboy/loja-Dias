@@ -774,6 +774,7 @@ def carrinho():
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
+<div class="field"><label class="lbl" for="tel">Seu WhatsApp</label><input id="tel" type="tel" inputmode="tel" placeholder="(27) 99999-9999" maxlength="20" autocomplete="tel"></div>
 <label class="opt" style="margin-top:10px"><input type="checkbox" id="nfq"><span>Preciso de nota fiscal (empresa)<small>Opcional. A nota vai para o e-mail da empresa.</small></span></label>
 <div id="nfbox" hidden>
 <div class="field"><label class="lbl" for="nfcnpj">CNPJ</label><input id="nfcnpj" inputmode="numeric" placeholder="00.000.000/0000-00" maxlength="18"></div>
@@ -793,7 +794,34 @@ def carrinho():
     (DIST / "carrinho.html").write_text(out, encoding="utf-8")
 
 def admin():
-    corpo = '''<section><div class="wrap prose" style="max-width:760px"><h1>Pedidos da loja</h1><p><a class="btn ghost" href="moderar.html">Avaliações para conferir</a></p><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
+    css = """<style>
+.painel{max-width:760px}.painel h1{font-size:34px;margin:6px 0 10px}
+.pbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btn.sm{padding:7px 11px;font-size:14px;border-radius:8px}
+.presumo{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.presumo div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.presumo b{display:block;font-size:20px}.presumo span{font-size:13px;color:var(--muted)}
+.pabas{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
+.pabas button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:20px;padding:7px 12px;font:inherit;font-size:14px}
+.pabas button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+#pbusca{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;font:inherit;background:var(--surface);color:var(--ink)}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;display:grid;gap:8px}
+.ptop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pchip{color:#fff;border-radius:20px;padding:3px 10px;font-size:13px;font-weight:600}
+.mono{font-family:var(--mono)}
+.pacts{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pit{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line)}
+.pit span{min-width:0;overflow-wrap:anywhere}
+.preal,.pnf,.pcompra{background:var(--bg);border-radius:10px;padding:8px 10px;margin-top:6px}
+.pcompra{border:1px solid var(--line);margin:10px 0}
+.petapas{display:flex;gap:8px;flex-wrap:wrap}.petapas select{padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--surface);color:var(--ink)}
+.pmais textarea,.pmodal input,.pmodal select,.pmodal textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--bg);color:var(--ink);margin-bottom:8px}
+.pmodal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;overflow:auto;padding:16px}
+.pmodal .panel{max-width:520px;margin:20px auto}
+.painel .lbl{display:block;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.wafloat,.buybar{display:none!important}
+</style>"""
+    corpo = css + '''<section><div class="wrap prose painel"><h1>Pedidos da loja</h1><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
     out = head("Pedidos | Loja Dias", "Tela da loja.", "admin.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
         + topo() + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
     (DIST / "admin.html").write_text(out, encoding="utf-8")
@@ -815,7 +843,7 @@ def minha_conta():
 def privacidade():
     corpo = f'''<section><div class="wrap prose" style="max-width:760px"><h1>Privacidade</h1>
 <p>Esta página explica, conforme a LGPD (Lei 13.709/2018), quais dados a {e(CFG["nome_loja"])} (CNPJ {e(CFG.get("cnpj",""))}) guarda, para quê e por quanto tempo.</p>
-<h2>Comprar sem conta</h2><p>Criar conta é opcional. Sem conta, a loja não guarda nada seu: o carrinho fica só no seu aparelho e o pedido vai direto para o nosso WhatsApp.</p>
+<h2>Comprar sem conta</h2><p>Criar conta é opcional. O carrinho fica só no seu aparelho. Quando você envia o pedido, guardamos uma cópia dele para separar e entregar: nome, WhatsApp, endereço, cidade, peças, valores, forma de pagamento e, se você pedir nota fiscal, o CNPJ, a razão social e o e-mail da empresa. Só a loja vê esses dados. Guardamos pelo prazo que a lei fiscal exige (5 anos) e depois apagamos.</p>
 <h2>O que guardamos se você criar conta</h2><ul>
 <li>Do login Google: nome, e-mail e um código interno da conta. Nunca vemos sua senha.</li>
 <li>O que você preencher: nome para entrega, WhatsApp, cidade e endereço.</li>
@@ -846,7 +874,7 @@ def extras(ps):
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
     pub = [dict({k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon", "fams", "universal", "ind")},
-                foto=p["fotos"][0] if p["fotos"] else "") for p in ps]
+                foto=p["fotos"][0] if p["fotos"] else "", **({"partes": p.get("partes", [])} if p["categoria"] == "kit" else {})) for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["ga"] = CFG.get("ga4_id", "")
