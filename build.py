@@ -160,11 +160,11 @@ def tabela_frete():
     if not FRETE_OK:
         rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
         return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Prazo</th><th>Frete</th></tr></thead><tbody>{rows}</tbody></table></div>'
-    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>{brl(c.get("gratis_acima") or GRATIS) if GRATIS else "—"}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
+    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>{brl(c.get("gratis_acima") or GRATIS) if GRATIS else "—"}</td><td>até {CFG["entrega_ate"]} do mesmo dia</td></tr>' for c in CFG["cidades"])
     return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Grátis acima de</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana.</p>' if GRATIS else "")
 
 FAQ = [
- ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
+ ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam até as {CFG['entrega_ate']} do mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
  ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
  ("Quais formas de pagamento?", "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido."),
@@ -196,7 +196,7 @@ def home(ps, artifact=False):
 <h1>Peça de moto e carro na sua porta, hoje</h1>
 <p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de óleo Onix" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
 <a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>
@@ -208,7 +208,7 @@ def home(ps, artifact=False):
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Escolha a peça</b><span>Busque pelo nome ou pelo modelo do seu veículo. Na dúvida, mande foto no WhatsApp.</span></li>
 <li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. Pague no Pix copia e cola.</span></li>
-<li><b>Receba com o motoboy</b><span>Entrega no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
+<li><b>Receba com o motoboy</b><span>Pedido até {CFG["corte_mesmo_dia"]}: entrega até as {CFG["entrega_ate"]} do mesmo dia. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
 <section><div class="wrap"><h2>Frete por cidade</h2>{tabela_frete()}</div></section>
 <section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
     faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]}
@@ -269,7 +269,7 @@ def home_vitrine(artifact=False):
 <h1>Peça de moto e carro na sua porta, hoje</h1>
 <p>Diga a peça e o modelo do veículo. A gente confere, manda o valor e entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
 <div style="display:flex;flex-wrap:wrap;gap:8px"><a class="btn" href="pedido.html">Fazer pedido</a></div>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]} chega hoje</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
 <a class="door" href="pedido.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus, óleo, filtros e elétrica para CG, Biz, Pop, Bros, Factor, Fazer, NMax e mais.</span></a>
@@ -278,7 +278,7 @@ def home_vitrine(artifact=False):
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Diga o que precisa</b><span>Peça, modelo e ano do veículo. Se tiver, mande foto da peça antiga.</span></li>
 <li><b>Receba o valor e o Pix</b><span>A gente confere na distribuidora e manda o preço com frete e o Pix copia e cola.</span></li>
-<li><b>Receba com o motoboy</b><span>Entrega no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Depois disso, no dia seguinte.</span></li></ol></div></section>
+<li><b>Receba com o motoboy</b><span>Pedido até {CFG["corte_mesmo_dia"]}: entrega até as {CFG["entrega_ate"]} do mesmo dia. Depois disso, no dia seguinte.</span></li></ol></div></section>
 <section><div class="wrap"><h2>Onde entregamos</h2>{tabela_frete()}</div></section>
 <section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
     faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]}
@@ -312,7 +312,7 @@ def cidade(c, ps):
     mais = [p for p in ps if p["estoque"] > 3][:8]
     corpo = f'''<div class="hero"><div class="wrap"><span class="eyebrow" style="color:var(--road-muted)">Entrega em {e(c["nome"])}, ES</span>
 <h1>Peças de moto e carro em {e(c["nome"])} com entrega por motoboy</h1>
-<p>Entrega {("por " + brl(c["normal"]) + ", ") if FRETE_OK else ""}no mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Pagamento no Pix.</p>
+<p>Entrega {("por " + brl(c["normal"]) + ", ") if FRETE_OK else ""}até as {CFG["entrega_ate"]} do mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Depois disso, no dia seguinte. Pagamento no Pix.</p>
 <div><a class="btn" href="{"pedido.html" if VITRINE else "catalogo.html"}">{"Fazer pedido" if VITRINE else "Ver peças"}</a></div></div></div>
 {"" if VITRINE else f'<section><div class="wrap"><h2>Peças prontas para entregar em {e(c["nome"])}</h2><div class="grid">{"".join(card(p) for p in mais)}</div></div></section>'}
 <section><div class="wrap prose"><h2>Como é a entrega em {e(c["nome"])}</h2>
@@ -325,7 +325,7 @@ def cidade(c, ps):
 
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
-<p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam no mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
+<p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam até as {CFG["entrega_ate"]} do mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
 {tabela_frete()}
 <h2 style="margin-top:28px">Peças grandes</h2><p>Peças que não cabem no baú da moto, como escapamento, para-choque e par de amortecedores, são combinadas pelo WhatsApp para retirada ou frete de carro.</p></div></section>'''
     pagina("entrega.html", "Entrega e fretes na Grande Vitória | Loja Dias Peças",
@@ -335,7 +335,7 @@ def carrinho():
     corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div class="tot" id="tot"></div></div>
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
-<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]} chega hoje{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
+<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
 <label class="opt"><input type="radio" name="ship" id="shipR" value="retirada"><span>Retirar<small>Combinar pelo WhatsApp</small></span><em>R$ 0,00</em></label></fieldset>
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
@@ -370,7 +370,7 @@ def extras(ps):
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
     pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
-    cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "cidades")}
+    cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["frete_gratis_acima"] = GRATIS
     if FIREBASE:
         cfg["firebase"] = FIREBASE

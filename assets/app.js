@@ -69,7 +69,7 @@
   if(shipSel){
     const out = $("#shipout");
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
-      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${(c.gratis_acima||C.frete_gratis_acima)?` (grátis a partir de ${brl(c.gratis_acima||C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
+      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${(c.gratis_acima||C.frete_gratis_acima)?` (grátis a partir de ${brl(c.gratis_acima||C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia}: entrega até as ${C.entrega_ate} do mesmo dia. Depois disso, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
   }
 

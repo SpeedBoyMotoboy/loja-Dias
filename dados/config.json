@@ -49,5 +49,6 @@
   },
   "fretes_confirmados": true,
   "cnpj": "46.178.859/0001-96",
-  "frete_gratis_acima": 49.9
+  "frete_gratis_acima": 49.9,
+  "entrega_ate": "18h"
 }
