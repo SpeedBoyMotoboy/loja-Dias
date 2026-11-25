@@ -211,7 +211,7 @@
         t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
-        t.naEntrega ? `Pagamento: Pix na entrega, ao motoboy` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
+        t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
       ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
     };
