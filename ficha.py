@@ -49,7 +49,7 @@ def relacao(desc):
     """'KIT TRANSMISSÃO C/RET 428HOX118L/44X15' -> dict. Aceita '428H X 122L /48X14', '520H+106/37X13', '39TX13T'."""
     d = _n(desc)
     s = d.replace(" ", "")
-    g = re.search(r"(\d{3})([A-Z]*?)[X+](\d{2,3})L?/(\d{2})T?X(\d{2})T?", s)
+    g = re.search(r"(\d{3})([A-Z]*?)[X+](\d{2,3})L?/?(\d{2})T?X(\d{2})T?", s)
     if not g:
         return None
     corrente, letras = g.group(1), g.group(2)
@@ -152,9 +152,12 @@ def _linhas(p):
         out.append(("Medida do pneu", g.group(1)))
         if g.group(2):
             out.append(("Válvula", g.group(2)))
-    g = re.search(r"(\d+)AH", d)
+    g = re.search(r"(\d+(?:[.,]\d+)?) ?AH", d)
     if g and d.startswith("BATERIA"):
-        out.append(("Capacidade", f"{g.group(1)} Ah"))
+        out.append(("Capacidade", f'{g.group(1).replace(".", ",")} Ah'))
+        p = re.search(r"POSITIVO (LE|LD)|POLO (POSITIVO )?(LE|LD)", d)
+        if p:
+            out.append(("Polo positivo", "Lado esquerdo" if "LE" in p.group(0) else "Lado direito"))
     g = re.search(r"(\d+(?:[.,]\d+)?) ?(ML|G|KG|L)\b", d)
     if g and p["categoria"] == "oleo":
         out.append(("Conteúdo", f'{g.group(1).replace(".", ",")} {g.group(2).lower()}'))
@@ -197,7 +200,9 @@ def _linhas(p):
         if re.search(rf"(?<!C/)(?<!COM )\b{pal}\b", d) and not (pal == "ACO" and "BLINDAGEM ACO" in d):
             out.append(("Material", mat))
             break
-    lado = "Lado direito" if re.search(r"\bLD\b|DIREIT", d) else "Lado esquerdo" if re.search(r"\bLE\b|ESQUERD", d) else None
+    lado = None if d.startswith("BATERIA") else "Lado direito" if re.search(r"\bLD\b|DIREIT", d) else "Lado esquerdo" if re.search(r"\bLE\b|ESQUERD", d) else None
+    if d.startswith("BATERIA"):
+        lado = None
     if lado:
         out.append(("Lado", lado))
     if not any(k.startswith("Medida") for k, _ in out) and not r:
