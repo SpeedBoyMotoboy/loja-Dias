@@ -23,7 +23,9 @@ VITRINE = False  # definido em main(): sem peças reais, o site vira vitrine com
 FRETE_OK = CFG.get("fretes_confirmados", False)
 GRATIS = CFG.get("frete_gratis_acima") or 0
 FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
-NA_ENTREGA = CFG.get("pagar_na_entrega", False)  # Pix ao motoboy na entrega; só liga com ok do Luan
+NA_ENTREGA = CFG.get("pagar_na_entrega", False)
+ANTECIPADO = CFG.get("pix_antecipado_acima") or 10**9  # Mesa 25/11: peça cara (giro lento) só com Pix antecipado
+GRATIS_TODAS = max([c.get("gratis_acima") or 0 for c in CFG["cidades"]] or [0])  # Pix ao motoboy na entrega; só liga com ok do Luan
 # Programa de indicação (25/11): link por pessoa (?ref=CODIGO). Desconto para quem compra e comissão para quem indica,
 # só nas peças em que ainda sobra o lucro mínimo depois dos dois (nunca prejuízo).
 # Avaliações (25/11): estrelas, texto e fotos no Firestore; vídeo só com Storage (plano Blaze) e "video_avaliacao": true
@@ -349,7 +351,11 @@ def card(p, foco=()):
     sub = p.get("spec") or ("Serve em qualquer moto" if p.get("universal") else "")
     if kit:
         sub = p.get("conteudo") or f'{len(kit)} peças no kit'
-    selo_kit = f'<span class="kitselo">Economize {brl(p["economia"])}</span>' if kit and p["economia"] > 0 else ""
+    # Mesa 25/11: kit de R$ 55+ vende pelo frete grátis, não pelos poucos reais de economia
+    if kit and p["preco"] >= 55 and GRATIS:
+        selo_kit = f'<span class="kitselo">{"Frete grátis + entrega hoje" if p["preco"] >= GRATIS_TODAS else "Frete grátis em Vitória, VV e Cariacica"}</span>'
+    else:
+        selo_kit = f'<span class="kitselo">Economize {brl(p["economia"])}</span>' if kit and p["economia"] > 0 else ""
     return f'''<article class="card{" kit" if kit else ""}" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1">{img}{selo_kit}</a>
 <div class="body"><h3><a href="{p["url"]}">{e(p.get("titulo") or p["nome"])}</a></h3>{f'<div class="fit">{e(sub)}</div>' if sub else ""}
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if low else ""}
@@ -510,10 +516,12 @@ def catalogo(ps):
     pagina("catalogo.html", "Catálogo de peças de moto e carro | Loja Dias Peças",
            "Todas as peças de moto e carro da Loja Dias com preço, compatibilidade e entrega por motoboy na Grande Vitória.", corpo)
 
-def confianca():
+def confianca(preco=0):
     """O que loja nova precisa mostrar perto do botão: quem entrega, o que acontece se não servir, garantia e CNPJ."""
     itens = [f"Entrega pelo motoboy da loja. Pedido até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']}"]
-    if NA_ENTREGA:
+    if NA_ENTREGA and preco >= ANTECIPADO:
+        itens.append(f"Peça acima de {brl(ANTECIPADO)}: pagamento no Pix antes da entrega, porque ela é separada só para você")
+    elif NA_ENTREGA:
         itens.append("Se preferir, pague o Pix quando o motoboy chegar")
     itens += ["Não serviu? O motoboy busca e troca em até 7 dias", GARANTIA,
               f"Loja de {CFG['cidade_base']}, CNPJ {CFG.get('cnpj','')}"]
@@ -580,7 +588,7 @@ def produto(p, ps=()):
 <div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
 <div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p.get("titulo") or p["nome"])}</h1>{'<a class="avlink" href="#avaliacoes">Avaliações de clientes</a>' if AVAL else ""}
 {f'<p class="specline">{e(p.get("conteudo") or p["spec"])}</p>' if p.get("spec") or p.get("conteudo") else ""}
-<div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{", agora ou na entrega" if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
+<div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{(" antecipado" if p["preco"] >= ANTECIPADO else ", agora ou na entrega") if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if p["estoque"] <= 3 else ""}
 <p class="corte" data-corte>Pedido até {CFG["corte_mesmo_dia"]} chega hoje até as {CFG["entrega_ate"]}.</p>
 {'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
@@ -588,7 +596,7 @@ def produto(p, ps=()):
 <a class="btn wa" href="{wa_compra}" target="_blank" rel="noopener">Comprar pelo WhatsApp</a>
 <button class="btn ghost" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button></div>
 <div class="ship"><label class="lbl" for="shipcity">Frete para</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
-{confianca()}
+{confianca(p["preco"])}
 {no_kit(p)}
 <a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande o modelo e o ano no WhatsApp</a>
 {f'<button class="btn ghost share" type="button" data-share="{e(p["url"])}" data-share-txt="{e(p["nome"] + " por " + brl(p["preco"]) + ", entrega no mesmo dia na Grande Vitória")}">Compartilhar esta peça no WhatsApp</button>' if IND else ""}
@@ -783,7 +791,7 @@ def carrinho():
 </div>
 {('<fieldset><legend class="lbl">Pagamento</legend>'
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
-'<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
+'<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small id="payentrega">Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
 <p class="err" id="err" hidden></p>
 <div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
 <a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
@@ -880,6 +888,7 @@ def extras(ps):
     cfg["ga"] = CFG.get("ga4_id", "")
     cfg["frete_gratis_acima"] = GRATIS
     cfg["na_entrega"] = NA_ENTREGA
+    cfg["antecipado"] = ANTECIPADO if ANTECIPADO < 10**9 else 0
     cfg["site"] = URL
     if IND:
         cfg["ind"] = {"desconto": IND["desconto"], "comissao": IND["comissao"], "dias": IND.get("dias", 30)}

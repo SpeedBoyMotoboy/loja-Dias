@@ -149,6 +149,10 @@
       const items = Object.entries(cart).map(([s,q])=>({p:P.find(p=>p.sku===s),q})).filter(i=>i.p);
       const sub = items.reduce((a,i)=>a+i.p.preco*i.q,0);
       const pix = true;
+      // Mesa 25/11: peça cara (giro lento) só com Pix antecipado
+      const caro = C.antecipado && items.some(i=>i.p.preco>=C.antecipado), rEnt = $('input[name="pay"][value="entrega"]');
+      if(rEnt){ rEnt.disabled = !!caro; if(caro && rEnt.checked){ rEnt.checked = false; const rAg = $('input[name="pay"][value="agora"]'); if(rAg) rAg.checked = true; }
+        const pe = $("#payentrega"); if(pe) pe.textContent = caro ? `Não vale para peça de ${brl(C.antecipado)} ou mais: ela é separada só para você, então o Pix é antes.` : "Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja."; }
       const payEl = $('input[name="pay"]:checked'), naEntrega = !!(payEl && payEl.value==="entrega");
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
