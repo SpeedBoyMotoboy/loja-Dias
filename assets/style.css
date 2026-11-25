@@ -194,3 +194,83 @@ footer a:hover{color:var(--accent)}
   #cats::-webkit-scrollbar{display:none}
   #cats button{flex:0 0 auto}
 }
+
+/* ===== 25/11, pesquisa das grandes lojas: vitrine em 2 colunas, compra em um toque, prazo com relógio ===== */
+.card .ph{aspect-ratio:1/1}
+.card h3{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.card .fit{line-height:1.35}
+@media (max-width:640px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card .body{padding:10px 10px 12px;gap:4px}
+  .card h3{font-size:14px;line-height:1.28}
+  .card .fit{font-size:12px}
+  .card .row{flex-direction:column;align-items:stretch;gap:8px}
+  .card .price{font-size:24px}
+  .card .add{width:100%;min-height:42px}
+  .bf .grid .card{flex:0 0 46%}
+  .junto .grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:-16px;padding-inline:16px;scroll-padding-inline:16px;scrollbar-width:none}
+  .junto .grid::-webkit-scrollbar{display:none}
+  .junto .grid .card{flex:0 0 44%;scroll-snap-align:start}
+}
+
+/* página da peça */
+.pdp h1{font-size:clamp(26px,4vw,40px);line-height:1.04}
+.specline{margin:0;color:var(--muted);font-size:15px}
+.pricebox{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.corte{margin:0;padding:10px 12px;border-left:5px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;font-weight:600;font-size:15px}
+.corte b{font-family:var(--display);font-size:20px;letter-spacing:.2px}
+.chip .corte-t b{font-weight:700}
+.cta{display:grid;gap:8px}
+.btn.big{min-height:54px;font-size:18px;font-family:var(--display);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.cta .btn.wa,.cta .btn.ghost{min-height:46px}
+.trust{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:14px}
+.trust li{display:grid;grid-template-columns:14px 1fr;gap:8px;align-items:baseline}
+.trust li::before{content:"";width:9px;height:9px;background:var(--accent);border-radius:2px;transform:translateY(-1px)}
+.serve{font-size:14px;color:var(--muted)}
+.junto{padding-block:22px 6px}
+.junto h2{margin-bottom:4px}
+.junto .note{margin:0 0 12px}
+.motolinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.motolinks a{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-size:14px;text-decoration:none}
+
+/* peças por moto, na capa */
+.mototiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mototiles a{display:flex;flex-direction:column;gap:2px;padding:12px 14px;background:var(--road);color:var(--road-ink);border-radius:10px;text-decoration:none;border-bottom:4px solid var(--accent)}
+.mototiles b{font-family:var(--display);font-size:24px;line-height:1;text-transform:uppercase;letter-spacing:.3px}
+.mototiles span{font-size:13px;color:var(--road-muted)}
+.mototiles a:hover{background:var(--accent);color:var(--accent-ink);border-bottom-color:var(--accent-ink)}
+.mototiles a:hover span{color:var(--accent-ink)}
+@media (max-width:640px){.mototiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* barra fixa de compra no rodapé da tela (some no carrinho) */
+.buybar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--road);color:var(--road-ink);border-top:4px solid var(--accent);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.buybar .in{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.buybar .txt{min-width:0;display:grid;gap:1px;font-size:13px;color:var(--road-muted)}
+.buybar .txt b{font-family:var(--display);font-size:24px;line-height:1;color:var(--road-ink);font-variant-numeric:tabular-nums}
+.buybar .btn{flex:0 0 auto;min-height:46px;font-family:var(--display);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+body.hasbar .wafloat{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+body.hasbar footer .wrap{padding-bottom:150px}
+@media (min-width:761px){.buybar.so-celular{display:none}body.hasbar.so-celular .wafloat{bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
+
+/* carrinho: quanto falta para o frete grátis e o que levar para fechar */
+.meta{display:grid;gap:6px;font-size:14px;font-weight:600}
+.meta .trilho{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.meta .trilho i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.meta.ok{color:var(--ok)}
+.sugest{display:grid;gap:8px}
+.sugest .s{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px 6px 6px;font-size:14px}
+.sugest img{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px}
+.sugest .s b{display:block;font-variant-numeric:tabular-nums}
+.sugest .add{padding:8px 12px}
+.cartpage .trust{margin-top:4px}
+
+/* WhatsApp flutuante: no celular vira só o ícone, para não cobrir preço nem botão */
+.wafloat{display:inline-flex;align-items:center;gap:8px}
+@media (max-width:760px){
+  .wafloat{padding:0;width:54px;height:54px;justify-content:center}
+  .wafloat span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  body.hasbar.so-celular .wafloat{display:none}  /* na página da peça já existe o botão "Comprar pelo WhatsApp" */
+  body.cta-visivel.so-celular .buybar{display:none}
+  body.cta-visivel.so-celular .wafloat{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+}
