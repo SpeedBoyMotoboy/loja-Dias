@@ -418,13 +418,15 @@ def black_friday(ps, destaque):
     ja = {p["sku"] for p in destaque}
     extra, usadas = [], set()  # uma peça por categoria, para a faixa não ficar só de pastilha
     for p in ps:
-        if p["categoria"] != "kit" and p["sku"] not in ja and p["fotos"] and p["categoria"] not in usadas and len(extra) < 8 - len(kits):
+        if p["categoria"] != "kit" and p["sku"] not in ja and p["fotos"] and p["categoria"] not in usadas and (p["categoria"] != "transmissao" or "kit relação" in p["nome"].lower()) and len(extra) < 8 - len(kits):
             extra.append(p); usadas.add(p["categoria"])
-    rel = next((p for p in ps if p["categoria"] == "transmissao" and "CG 160" in p.get("fams", [])), None)
-    past = mais_barata(ps, "freio", "pastilha")
+    # 25/11: antes pegava a 1ª peça de transmissão da CG 160, que virou um retentor de R$ 9,90. Agora só kit relação de verdade.
+    cg = [p for p in ps if "CG 160" in p.get("fams", [])]
+    rel = mais_barata(cg, "transmissao", "kit relação")
+    past = mais_barata(cg, "freio", "pastilha")
     fatos = []
     if rel: fatos.append(f"Kit relação da CG 160 por {brl(rel['preco'])}")
-    if past: fatos.append(f"pastilha de freio a partir de {brl(past['preco'])}")
+    if past: fatos.append(f"pastilha de freio da CG 160 a partir de {brl(past['preco'])}")
     banner = (f'<img class="bfimg" src="img/banner-black-friday.webp" alt="" width="1920" height="480">'
               if (RAIZ / "img/banner-black-friday.webp").exists() else "")
     return f'''<section class="bf" aria-labelledby="bft"><div class="wrap">{banner}
@@ -444,12 +446,12 @@ def home(ps, artifact=False):
         destaque, vistos = [], set()
         for cat in ("transmissao", "freio", "filtro", "ignicao", "eletrica", "cabo", "pneu", "acessorio"):
             # kit relação: o da CG 160 vem primeiro (moto que mais roda e nosso melhor preço contra as lojas grandes)
-            x = (next((p for p in ps if cat == "transmissao" and p["categoria"] == cat and p["fotos"] and "CG 160" in p.get("fams", [])), None)
+            x = (next((p for p in ps if cat == "transmissao" and p["categoria"] == cat and p["fotos"] and "CG 160" in p.get("fams", []) and "kit relação" in p["nome"].lower()), None)
                  or next((p for p in ps if p["categoria"] == cat and p["fotos"]), None))
             if x: destaque.append(x); vistos.add(x["sku"])
         for p in ps:  # completa com a segunda mais vendida de relação e freio
             if len(destaque) >= 12: break
-            if p["sku"] not in vistos and p["categoria"] in ("transmissao", "freio") and p["fotos"]:
+            if p["sku"] not in vistos and p["categoria"] in ("transmissao", "freio") and p["fotos"] and (p["categoria"] == "freio" or "kit relação" in p["nome"].lower()):
                 destaque.append(p); vistos.add(p["sku"])
     else:
         destaque = [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
