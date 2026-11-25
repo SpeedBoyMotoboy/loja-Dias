@@ -179,12 +179,40 @@ def serve_em_moto(nome, apl):
         return "moto" in a or not re.search(r"automov|caminh|utilit|onibus|agricol", a)
     return False
 
+# 25/11 (catálogo de 1000): tipos novos, decididos pelo COMEÇO da descrição. Vale antes da lista CATS, que olha a frase toda.
+CATS_INICIO = [
+    ("acessorio", r"mola (do )?cavalete|kit cavalete"),
+    ("eletrica", r"suporte escova|suporte e escovas"),
+    ("motor", r"corrente (do |de )?comando|kit tensor|tensor|guia corrente|junta|kit [ab] junta|kit vedacao|carburador|pistao|anel|aneis|kit cilindro|"
+              r"cilindro motor|valvula|comando|balancim|bomba (de )?oleo|disco (de )?embreagem|kit (de )?embreagem|plato|virabrequim|biela|"
+              r"rolamento (do )?(virabrequim|comando)|diafragma|boia|agulha|gicle|reparo (do )?carburador|bico injetor|bomba (de )?combustivel|torneira|"
+              r"engrenagem|eixo (do )?(comando|balancim|cambio|partida)|eixo (secundario|primario)|pedal (de )?(partida|cambio)|mola (da )?embreagem|"
+              r"capa (da )?corrente|kit motor|embreagem|coletor (de )?admissao|arvore comando|tensionador|guia valvula|separador embreagem|"
+              r"cubo embreagem|kit comando|ressalto comando|kit reparo mesa|bujao"),
+    ("oleo", r"graxa|aditivo|silicone spray|vaselina spray|desengripante"),
+    ("roda", r"rolamento|cubo|flange|cinta|eixo|raio|aro |espacador"),
+    ("suspensao", r"amortecedor|tubo interno|bengala|caixa (de )?direcao|guarda po|mola|bucha (da )?balanca|kit bucha|bucha garfo|bucha (do )?quadro"),
+    ("freio", r"disco (de )?freio|cilindro mestre|pinca|flexivel|reparo (do |da )?(freio|cilindro mestre|pinca)|burrinho|pedal (de )?freio|vareta|"
+              r"interruptor (de )?freio"),
+    ("ignicao", r"cdi|bobina|cachimbo|terminal cachimbo"),
+    ("eletrica", r"chave|interruptor|rele|regulador|pisca|lente|lanterna|farol|soquete|estator|buzina|sensor|chicote|conector|fusivel|"
+                 r"motor (de )?partida|escova|painel|velocimetro|bloco optico|punho|sonda|reparo escova|suporte e escovas|fiacao|carcaca|"
+                 r"volante magnetico|controle remoto"),
+    ("transmissao", r"coroa|pinhao|corrente|coxim (da )?coroa|bucha (da )?coroa|correia|rolete|variador"),
+    ("acessorio", r"manopla|guidao|carenagem|paralama|para-lama|bagageiro|protetor|capa|bau|cavalete|descanso|pedal|espelho|banco|tampa|suporte|"
+                  r"alca|slider|antena|trava|alarme|borracha|sanfona|peso (de )?guidao|tripe|kit cavalete|estribo"),
+]
+
 def categoria(txt):
     t = norm(txt) + " "
-    for c, ws in CATS:
-        if any(w in t for w in ws):
-            return c
-    return ""
+    ja = next((c for c, ws in CATS if any(w in t for w in ws)), "")
+    # peça que a lista antiga já conhecia pelo começo do nome (pastilha, vela, filtro, cabo...) continua onde estava
+    if not re.match(r"(pastilha|lona|sapata|patim|kit transmissao|kit relacao|filtro|tela|oleo|vela|bateria|lampada|cabo |pneu|camara|palheta|"
+                    r"retrovisor|manete|pedaleira|retentor)", t):
+        for c, pat in CATS_INICIO:
+            if re.match(pat, t):
+                return c
+    return ja
 
 def main():
     if "--so-kits" in sys.argv:
@@ -201,6 +229,8 @@ def main():
         if not sku or not nome or custo <= 0 or sku in vistos:
             continue
         nome = re.sub(r"(\S)- ", r"\1 - ", nome)  # 'FILTRO DO AR MOTOR- JFA0M79 - WEGA'
+        if len(nome.split(" - ")) < 3:
+            nome = re.sub(r"(\D)-(\d{6,})\b", r"\1 - \2", re.sub(r" -(\S)", r" - \1", nome))  # 'ESTRIBO ... PRETO-100502302 -POLIMET'
         marca_r = col(r, "marca")
         if "¿" in nome:  # 'PASTILHA DE FREIO DIANTEIRA DIAFRAG DFP-20905 ¿ SISTEMA CBS'
             desc = re.sub(r"\s+", " ", re.sub(r"\b[A-Z]{2,4}-?\d{3,}\b", "", nome.replace("¿", " ").replace(marca_r, " "))).strip()
@@ -232,7 +262,7 @@ def main():
         if SO_MOTO and tipo == "carro":  # Luan 24/11: por enquanto só 2 rodas
             continue
         vistos.add(sku)
-        saida.append({"sku": sku, "nome": nome[:90], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
+        saida.append({"sku": sku, "nome": nome[:120], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
                       "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",
                       "preco": "", "custo": f"{custo:.2f}", "ml_medio": f"{teto / 1.10:.2f}" if teto else "", "estoque": 10 if not est or not est.isdigit() else est,
                       "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})

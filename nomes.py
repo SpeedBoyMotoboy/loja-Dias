@@ -7,7 +7,7 @@ def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
 
 SIGLAS = {"CG", "XRE", "PCX", "CB", "CBX", "SH", "XR", "NX", "XLR", "CRF", "XT", "YBR", "XTZ", "NXR", "YS", "FZ15", "FZ25", "NX4", "T115"}
-CARRO = re.compile(r"\b\d{1,2}V\b|\bAUDI\b|\(|FORA DA FROTA|CAMINH|AUTOMOV|UTILIT", re.I)  # carro, caminhão (motor entre parênteses) e afins
+CARRO = re.compile(r"\b\d{1,2}V\b|\bAUDI\b|\(|FORA DA FROTA|CAMINH|AUTOMOV|UTILIT|N[AÃ]O VEICULAR|SEM APLICA|M[AÁ]QUINAS|[OÔ]NIBUS", re.I)  # carro, caminhão (motor entre parênteses) e afins
 PRIORIDADE = ["CG 160", "CG 150", "CG 125", "Biz 125", "Biz 110i", "Biz 100", "Pop 110i", "Pop 100", "Bros 160", "Bros 150", "Bros 125",
               "Fazer 150", "Factor 150", "Crosser 150", "XRE 300", "XRE 190", "Fazer 250", "Lander 250", "Twister 250", "CB 300", "PCX 150", "NMax 160"]
 
@@ -101,6 +101,94 @@ TIPOS_PECA = [
     (r"^lampada (de )?sinaliz\w*", "Lâmpada de sinalização"), (r"^lampada", "Lâmpada"),
 ]
 
+# 25/11 (catálogo de 1000): tipos novos. (começo da descrição da Real sem acento, nome do tipo). O resto da descrição vem depois, arrumado.
+FRASES = [
+    (r"^disco (de )?freio", "Disco de freio"), (r"^chave (de )?ignicao", "Chave de ignição"), (r"^chave (de )?luz", "Chave de luz"),
+    (r"^chave comutadora", "Chave comutadora"), (r"^interruptor (de )?freio", "Interruptor de freio"),
+    (r"^interruptor (de )?partida", "Interruptor de partida"), (r"^interruptor (de )?neutro", "Interruptor de neutro"),
+    (r"^interruptor (de )?pisca", "Interruptor do pisca"), (r"^interruptor (de )?embreagem", "Interruptor de embreagem"),
+    (r"^regulador[ /]retificador", "Regulador retificador"), (r"^tubo interno( bengala)?", "Tubo interno da bengala"),
+    (r"^amortecedor para suspensao", "Amortecedor"), (r"^amortecedor", "Amortecedor"),
+    (r"^junta guarnicao tampa valvula", "Junta da tampa de válvula"), (r"^junta tampa valvula", "Junta da tampa de válvula"),
+    (r"^junta motor", "Jogo de juntas do motor"), (r"^kit a junta superior motor", "Jogo de juntas superior do motor"),
+    (r"^kit b junta inferior motor", "Jogo de juntas inferior do motor"), (r"^kit vedacao tampa valvula", "Kit de vedação da tampa de válvula"),
+    (r"^junta estator tampa lateral esquerda", "Junta da tampa do estator, lado esquerdo"),
+    (r"^junta embreagem tampa lateral direita", "Junta da tampa de embreagem, lado direito"),
+    (r"^junta (do )?cilindro", "Junta do cilindro"), (r"^junta (do )?cabecote", "Junta do cabeçote"),
+    (r"^junta acionador tensor", "Junta do acionador do tensor"), (r"^junta (da )?carcaca", "Junta da carcaça"),
+    (r"^junta (do )?escap\w*", "Junta do escapamento"), (r"^junta (do )?carburador", "Junta do carburador"), (r"^junta", "Junta"),
+    (r"^kit tensor corrente comando", "Kit tensor da corrente de comando"), (r"^tensor corrente comando", "Tensor da corrente de comando"),
+    (r"^guia corrente comando", "Guia da corrente de comando"), (r"^corrente (do |de )?comando", "Corrente de comando"),
+    (r"^corrente (de )?transmissao", "Corrente de transmissão"),
+    (r"^rolamento (de |da )?roda", "Rolamento de roda"), (r"^rolamento (do )?virabrequim", "Rolamento do virabrequim"),
+    (r"^rolamento (do )?comando", "Rolamento do comando"), (r"^rolamento (da |de )?(caixa )?direcao", "Rolamento da caixa de direção"),
+    (r"^rolamento esfera", "Rolamento"), (r"^rolamento", "Rolamento"),
+    (r"^rele (de )?partida", "Relé de partida"), (r"^rele (de |do )?pisca", "Relé do pisca"), (r"^rele (de )?carga", "Relé de carga"), (r"^rele", "Relé"),
+    (r"^bobina (de )?pulso", "Bobina de pulso"), (r"^bobina (de )?ignicao", "Bobina de ignição"), (r"^bobina (de )?forca", "Bobina de força"),
+    (r"^cdi( modulo)?( de)?( ignicao)?", "CDI"), (r"^coxim (da )?coroa( transmissao)?", "Coxim da coroa"), (r"^bucha (da )?coroa", "Bucha da coroa"),
+    (r"^cubo (da )?roda", "Cubo da roda"), (r"^soquete (do )?farol", "Soquete do farol"), (r"^soquete (da )?lanterna", "Soquete da lanterna"),
+    (r"^lente (do )?pisca( seta)?", "Lente do pisca"), (r"^lente (da )?lanterna", "Lente da lanterna"),
+    (r"^guarda po( do)? garfo", "Guarda-pó da bengala"), (r"^caixa de direcao", "Caixa de direção"),
+    (r"^carenagem (do )?farol", "Carenagem do farol"), (r"^carenagem lateral (do )?farol", "Carenagem lateral do farol"),
+    (r"^cabo (do |de )?velocimetro", "Cabo do velocímetro"), (r"^cabo (do |de )?freio", "Cabo do freio"), (r"^cabo (do |de )?afogador", "Cabo do afogador"),
+    (r"^coroa", "Coroa"), (r"^pinhao", "Pinhão"), (r"^pisca", "Pisca"), (r"^manopla", "Manopla"), (r"^carburador", "Carburador"),
+    (r"^kit (de )?embreagem", "Kit de embreagem"), (r"^disco (de )?embreagem", "Discos de embreagem"),
+    (r"^estator( volante)?", "Estator"), (r"^pistao c/ ?anel( cofap)?", "Pistão com anéis"), (r"^pistao e aneis", "Pistão com anéis"), (r"^motor (de )?partida", "Motor de partida"),
+    (r"^fiacao principal( \(chicote\))?", "Chicote elétrico principal"), (r"^suporte e escovas( motor de partida)?", "Suporte e escovas do motor de partida"),
+    (r"^reparo escova mola", "Reparo de escova e mola"), (r"^sensor nivel medidor combustivel", "Sensor de nível de combustível"),
+    (r"^eixo secundario", "Eixo secundário do câmbio"), (r"^eixo primario", "Eixo primário do câmbio"),
+    (r"^bomba combustivel elet\w* refil", "Refil da bomba de combustível"), (r"^bomba (de )?combustivel", "Bomba de combustível"),
+    (r"^cachimbo( de)? vela", "Cachimbo de vela"), (r"^embreagem placa partida", "Embreagem de partida"),
+    (r"^coletor (de )?admissao", "Coletor de admissão"), (r"^volante magnetico( rotor)?", "Volante magnético"),
+    (r"^bucha garfo traseir[oa] kit", "Kit de buchas da balança traseira"), (r"^tripe cavalete lateral", "Descanso lateral"),
+    (r"^caixa direcao", "Caixa de direção"), (r"^kit motor( cofap)?", "Kit motor"),
+    (r"^filtro (do |de )?combustivel", "Filtro de combustível"), (r"^bujao (do |de )?oleo", "Bujão do óleo"),
+    (r"^arvore (de )?comando", "Comando de válvulas"), (r"^pedal (de )?cambio", "Pedal de câmbio"), (r"^pedal (de )?freio", "Pedal de freio"),
+    (r"^terminal cachimbo vela", "Terminal do cachimbo de vela"), (r"^flange (do )?(cubo )?(da )?roda", "Flange da roda"),
+    (r"^bucha quadro elastico garfo traseiro kit", "Kit de buchas do quadro elástico"), (r"^mola (do )?cavalete", "Mola do cavalete"),
+    (r"^suporte escova", "Suporte de escovas"), (r"^kit reparo mesa magneto", "Kit reparo da mesa do magneto"),
+    (r"^parafuso (do )?disco (de )?freio", "Parafuso do disco de freio"), (r"^raio", "Raio"), (r"^guidao", "Guidão"), (r"^buzina", "Buzina"),
+]
+PALAVRAS = {"ignicao": "ignição", "valvula": "válvula", "cabecote": "cabeçote", "guarnicao": "guarnição", "vedacao": "vedação",
+            "direcao": "direção", "transmissao": "transmissão", "suspensao": "suspensão", "pinhao": "pinhão", "lampada": "lâmpada",
+            "modulo": "módulo", "emergencia": "emergência", "aco": "aço", "po": "pó", "oleo": "óleo", "embreagem": "embreagem",
+            "velocimetro": "velocímetro", "camara": "câmara", "carcaca": "carcaça", "eletrico": "elétrico", "eletrica": "elétrica",
+            "fume": "fumê", "cambio": "câmbio", "traseiro": "traseiro", "regulagem": "regulagem", "pressao": "pressão", "sinalizacao": "sinalização",
+            "plastico": "plástico", "aluminio": "alumínio", "nylon": "náilon", "combustivel": "combustível", "injecao": "injeção", "eletronica": "eletrônica",
+            "dian": "dianteiro", "diant": "dianteiro", "tras": "traseiro", "tra": "traseiro", "le": "lado esquerdo", "ld": "lado direito",
+            "esq": "esquerdo", "dir": "direito", "az": "azul", "verm": "vermelho", "pto": "preto", "injet": "injetado", "cromad": "cromado",
+            "c/": "com", "s/": "sem", "p/": "para", "secundario": "secundário", "primario": "primário", "magnetico": "magnético",
+            "admissao": "admissão", "nivel": "nível", "fiacao": "fiação", "tripe": "tripé", "elet": "elétrica", "aneis": "anéis", "pistao": "pistão",
+            "optico": "óptico", "macico": "maciço", "reforcado": "reforçado", "zincado": "zincado", "guidao": "guidão", "padrao": "padrão", "elastico": "elástico", "bujao": "bujão", "arvore": "árvore",
+            "tubular-mod": "tubular modelo", "pe": "pé", "balanca": "balança", "mao": "mão", "cubico": "cúbico", "ceramica": "cerâmica", "organica": "orgânica", "lamp": "lâmpada", "univ": "universal", "comp": "completo", "sup": "superior", "inf": "inferior"}
+
+def _arruma(resto):
+    """'DIAN LE TRAS LD C/LAMPADA (404SV-96L)' -> 'dianteiro lado esquerdo traseiro lado direito com lâmpada (404SV-96L)'"""
+    resto = re.sub(r"\b([CSP])/\s*", lambda g: g.group(1).lower() + "/ ", resto, flags=re.I)
+    out = []
+    for w in resto.split():
+        nu = _n(w).strip(".,")
+        if re.search(r"\d", w):
+            out.append(w.upper())
+        elif nu in PALAVRAS:
+            out.append(PALAVRAS[nu])
+        elif w.strip("()").upper() in SIGLAS or w.upper() in ("CBS", "ABS", "LED", "DOT3", "DOT4"):
+            out.append(w.upper())
+        else:
+            out.append(w.lower())
+    return " ".join(out)
+
+def tipo_generico(desc):
+    """Tipo de peça que não está em TIPOS_PECA: usa FRASES no começo e arruma o resto da descrição da Real."""
+    nd = re.sub(r"\s+", " ", _n(desc)).strip()
+    for pat, rep in FRASES:
+        g = re.match(pat, nd)
+        if g:
+            resto = _arruma(re.sub(r"\s+", " ", desc).strip()[g.end():].strip(" -"))
+            return (rep + (" " + resto if resto else "")).strip()
+    t = _arruma(desc)
+    return t[:1].upper() + t[1:]
+
 def _medida(desc):
     """'RETENTOR BENGALA 27X39X10,5' -> 'Medida 27 x 39 x 10,5 mm'"""
     g = re.search(r"(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)(?:\s*X\s*(\d+(?:[.,]\d+)?))?", desc.upper())
@@ -129,6 +217,7 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     if len(partes) < 3:
         return fallback, ""
     desc, cod, marca = partes[0], partes[1], partes[-1]
+    marca = re.sub(r"\s+(INDUSTRIA|IND\.?|MOTO PE[CÇ]AS|LTDA)\b.*$", "", marca, flags=re.I)  # 'POLIMET INDUSTRIA METALURGICA' -> 'Polimet'
     marca = marca if len(marca) <= 3 else marca.title()
     nd = _n(desc)
     tipo = next((rep for pat, rep in TIPOS_PECA if re.match(pat, nd)), None)
@@ -141,14 +230,17 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     g = re.match(r"^bateria (premium )?(\d+)ah", nd)
     if g:
         return f"Bateria de moto {g.group(2)}Ah 12V {marca} {cod}", ("Linha premium" if g.group(1) else "")
-    if not tipo:
-        return fallback, ""
+    generico = not tipo
+    if generico:
+        if not nd or categoria == "kit":
+            return fallback, ""
+        tipo = tipo_generico(desc)
     extra, spec = "", ""
-    if categoria == "transmissao":
+    if categoria == "transmissao" and not generico:
         s = spec_relacao(desc)
         if s:
             spec = f"Coroa {s['coroa']}, pinhão {s['pinhao']}, corrente {s['corrente']} com {s['elos']} elos"
-    elif categoria == "ignicao":
+    elif categoria == "ignicao" and tipo.startswith("Vela"):
         extra = f" {marca} {cod}"; marca = ""
     elif tipo == "Lâmpada do farol" and re.match(r"^lampada farol (alto, farol baixo|moto)", nd):
         g = re.search(r"H4\s*[\d/]+W", nome_real.upper()); extra = f" {g.group(0)}" if g else ""
@@ -166,6 +258,10 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
         spec = ", ".join(x for x in ("Cerâmica, com mola" if "ceramica" in nd else "", "Sobremedida 0,25 mm" if re.search(r"sob ?med", nd) else "") if x)
     elif tipo.startswith("Lâmpada"):
         extra = _lampada(desc)
+    elif tipo.startswith("Pistão"):  # a medida vem no fim do código: PA9825STD, PA9825025 (0,25 mm), PA4101150 (1,50 mm)
+        g = re.search(r"(STD|025|050|075|100|125|150)$", cod.upper())
+        if g:
+            extra = " medida padrão (STD)" if g.group(1) == "STD" else f" sobremedida {g.group(1)[0]},{g.group(1)[1:]} mm"
     if "organica" in nd and not spec:
         spec = "Orgânica"
     elif "ceramica" in nd and not spec:

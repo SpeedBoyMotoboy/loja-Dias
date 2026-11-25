@@ -26,9 +26,10 @@ FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 NA_ENTREGA = CFG.get("pagar_na_entrega", False)  # Pix ao motoboy na entrega; só liga com ok do Luan
 GARANTIA = "Garantia de 90 dias contra defeito de fabricação"  # garantia legal (CDC, art. 26)
 
-CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
+CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo, graxa e aditivos",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
-        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes", "kit": "Kits prontos", "suspensao": "Retentores e suspensão"}
+        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor, manete e acessórios", "kit": "Kits prontos", "suspensao": "Suspensão e retentores",
+        "motor": "Motor e embreagem", "roda": "Rolamentos e rodas"}
 SO_MOTO = CFG.get("so_moto", False)  # Luan 24/11: por enquanto só 2 rodas
 TIPOS = {"moto": "Moto", "carro": "Carro"}
 ICON = {
@@ -43,6 +44,8 @@ ICON = {
  "palheta": '<path d="M8 48 52 14"/><path d="M14 52 56 20" stroke-width="5"/><circle cx="8" cy="48" r="4"/>',
  "suspensao": '<path d="M32 6v10M32 48v10"/><rect x="24" y="16" width="16" height="32" rx="3"/><path d="M24 26h16M24 36h16"/>',
  "kit": '<rect x="10" y="22" width="44" height="30" rx="3"/><path d="M24 22v-8h16v8M10 34h44"/>',
+ "motor": '<rect x="16" y="22" width="32" height="26" rx="3"/><path d="M24 22v-8h16v8M16 32H8v8h8M48 32h8v8h-8M26 48v8M38 48v8"/>',
+ "roda": '<circle cx="32" cy="32" r="22"/><circle cx="32" cy="32" r="9"/><circle cx="32" cy="15" r="3"/><circle cx="32" cy="49" r="3"/><circle cx="15" cy="32" r="3"/><circle cx="49" cy="32" r="3"/>',
  "acessorio": '<ellipse cx="38" cy="22" rx="16" ry="11"/><path d="M28 30 12 54"/>',
 }
 FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">'
@@ -145,12 +148,20 @@ def carregar():
         # Pesquisa 25/11: as grandes lojas dão à peça o nome da moto e do ano; o código técnico vira detalhe.
         p["nome"], p["spec"] = nome_por_moto(p["nome_real"], p["categoria"], veic, p["nome"])
         p["fams"] = [f[0] for f in familias(veic)]
+        p["marca"] = re.sub(r"\s+(INDUSTRIA|IND\.?|MOTO PE[CÇ]AS|LTDA)\b.*$", "", p["marca"], flags=re.I)  # 'POLIMET INDUSTRIA METALURGICA' -> 'POLIMET'
         if p["marca"].isupper() and len(p["marca"]) > 3:
             p["marca"] = p["marca"].title()
         p["universal"] = not p["fams"] and any("universal" in v.lower() for v in veic)
         if p["categoria"] != "kit":  # a descrição da distribuidora é só o nome em maiúsculas; no site vai frase que o cliente entende
             p["descricao"] = f'{p["nome"]}. {(p["spec"] + ". ") if p["spec"] else ""}Peça nova, marca {p["marca"]}, código {p["sku"]}. Entrega por motoboy no mesmo dia na Grande Vitória.'
         ps.append(p)
+    # Catálogo de 1000 (25/11): peças diferentes que ficaram com o mesmo nome (ex.: pistão em medidas diferentes) ganham o código no nome.
+    rep = {}
+    for p in ps:
+        rep[p["nome"]] = rep.get(p["nome"], 0) + 1
+    for p in ps:
+        if p["categoria"] != "kit" and rep[p["nome"]] > 1 and p["sku"] not in p["nome"]:
+            p["nome"] += f' (cód. {p["sku"]})'
     # Kit (25/11, modelo das lojas grandes): lista do que vem dentro e a conta real "separado x no kit".
     por = {p["sku"]: p for p in ps}
     for p in ps:
