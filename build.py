@@ -248,8 +248,7 @@ def creditos():
     corpo = f'''<section><div class="wrap prose"><h1>Créditos das fotos</h1>
 <p>As fotos das motos na página inicial são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p>
 <ul>{linhas}</ul>
-<p>As fotos servem só para você reconhecer o modelo. A Loja Dias não tem ligação com os fabricantes das motos. Honda e Yamaha são marcas dos seus donos.</p>
-<p>As fotos das peças são das distribuidoras e dos fabricantes das peças.</p></div></section>'''
+<p>As fotos servem só para você reconhecer o modelo. A Loja Dias não tem ligação com os fabricantes das motos. Honda e Yamaha são marcas dos seus donos.</p></div></section>'''
     pagina("creditos.html", "Créditos das fotos | Loja Dias Peças", "Autores e licenças das fotos de motos usadas no site da Loja Dias.", corpo)
 
 MOTOS_ATIVAS = []  # preenchido em main(): só moto com 3 peças próprias ou mais ganha página
