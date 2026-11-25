@@ -138,6 +138,7 @@ def carregar():
         if p["preco"] is None:
             continue
         p["fotos"] = fotos_de(p["sku"], r.get("partes", ""))
+        p["partes"] = [x for x in (r.get("partes") or "").split(";") if x]
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
         p["nome_real"], p["nome"] = p["nome"], nome_vitrine(p["nome"], p["categoria"])  # slug/URL continuam do nome original
@@ -150,6 +151,25 @@ def carregar():
         if p["categoria"] != "kit":  # a descrição da distribuidora é só o nome em maiúsculas; no site vai frase que o cliente entende
             p["descricao"] = f'{p["nome"]}. {(p["spec"] + ". ") if p["spec"] else ""}Peça nova, marca {p["marca"]}, código {p["sku"]}. Entrega por motoboy no mesmo dia na Grande Vitória.'
         ps.append(p)
+    # Kit (25/11, modelo das lojas grandes): lista do que vem dentro e a conta real "separado x no kit".
+    por = {p["sku"]: p for p in ps}
+    for p in ps:
+        p["itens"] = [por[x] for x in p["partes"] if x in por] if p["categoria"] == "kit" else []
+        if p["itens"]:
+            p["separado"] = round(sum(x["preco"] for x in p["itens"]), 2)
+            p["economia"] = round(p["separado"] - p["preco"], 2)  # nunca inventada: é a soma das peças no site menos o preço do kit
+            # dentro do kit da Bros, o filtro aparece como "Filtro de ar Bros 160", não com o nome de outra moto
+            p["itens"] = [dict(x, nome=nome_por_moto(x["nome_real"], x["categoria"], x["veiculos"], x["nome"], primeiro=tuple(p["fams"]))[0]) for x in p["itens"]]
+            nomes = [x["nome"] for x in p["itens"]]
+            p["descricao"] = (f'{p["nome"]}. Vem com {len(nomes)} peças: {"; ".join(nomes)}. '
+                              + (f'Comprando separado sai {brl(p["separado"])}; no kit sai {brl(p["preco"])}. ' if p["economia"] > 0 else "")
+                              + "Entrega por motoboy no mesmo dia na Grande Vitória.")
+    for p in ps:
+        if p["itens"] and ":" in p["nome"]:
+            p["titulo"], p["conteudo"] = [x.strip() for x in p["nome"].split(":", 1)]
+            p["conteudo"] = p["conteudo"][0].upper() + p["conteudo"][1:]
+    for p in ps:  # a peça sabe em que kits ela entra, para oferecer o kit na página dela
+        p["em_kits"] = [k for k in ps if p["sku"] in k.get("partes", []) and k.get("economia", 0) > 0] if p["categoria"] != "kit" else []
     return ps
 
 # ---------- moldura comum ----------
@@ -229,17 +249,31 @@ def selo(p):
         return f'<div class="stock">Compre junto e ganhe frete grátis</div>'
     return ""
 
+def colagem(p, grande=False):
+    """Foto do kit = as peças lado a lado (até 4), como a foto montada das lojas grandes."""
+    fs = [x["fotos"][0] for x in p["itens"] if x["fotos"]][:4]
+    if not fs:
+        return icon("kit")
+    return (f'<span class="colagem n{len(fs)}" role="img" aria-label="{e(p["nome"])}">'
+            + "".join(f'<img src="{f}" alt=""{"" if grande else " loading=lazy"}>' for f in fs) + "</span>")
+
 def card(p, foco=()):
     if foco and p["categoria"] != "kit":  # na página da Bros, a peça aparece como "Filtro de ar Bros 160, ..." e não com o nome de outra moto
         p = dict(p, nome=nome_por_moto(p["nome_real"], p["categoria"], p["veiculos"], p["nome"], primeiro=foco)[0])
     img = f'<img src="{p["fotos"][0]}" alt="{e(p["nome"])}" loading="lazy">' if p["fotos"] else icon(p["categoria"])
+    kit = p.get("itens")
+    if kit:
+        img = colagem(p)
     low = p["estoque"] <= 3
     # O nome já diz a moto. Embaixo vai só o que ajuda a escolher: medida da relação ou "serve em qualquer moto".
     sub = p.get("spec") or ("Serve em qualquer moto" if p.get("universal") else "")
-    return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1">{img}</a>
-<div class="body"><h3><a href="{p["url"]}">{e(p["nome"])}</a></h3>{f'<div class="fit">{e(sub)}</div>' if sub else ""}
+    if kit:
+        sub = p.get("conteudo") or f'{len(kit)} peças no kit'
+    selo_kit = f'<span class="kitselo">Economize {brl(p["economia"])}</span>' if kit and p["economia"] > 0 else ""
+    return f'''<article class="card{" kit" if kit else ""}" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1">{img}{selo_kit}</a>
+<div class="body"><h3><a href="{p["url"]}">{e(p.get("titulo") or p["nome"])}</a></h3>{f'<div class="fit">{e(sub)}</div>' if sub else ""}
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if low else ""}
-<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
+<div class="row"><div class="price">{f'<s>{brl(p["separado"])}</s>' if kit and p["economia"] > 0 else ""}{brl(p["preco"])}<small>no Pix</small></div>
 <button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(p["nome"])} ao carrinho">Adicionar</button></div></div></article>'''
 
 def tabela_frete():
@@ -282,7 +316,7 @@ def black_friday(ps, destaque):
     (25/11: saiu a linha 'economiza R$ 2,90' dos kits; perto dos -40% das lojas grandes ela enfraquecia a faixa.)"""
     if not CFG.get("black_friday"):
         return ""
-    kits = [p for p in ps if p["categoria"] == "kit"]
+    kits = sorted([p for p in ps if p["categoria"] == "kit"], key=lambda k: -k.get("economia", 0))[:4]
     ja = {p["sku"] for p in destaque}
     extra, usadas = [], set()  # uma peça por categoria, para a faixa não ficar só de pastilha
     for p in ps:
@@ -396,9 +430,31 @@ def ficha(p):
     return (f'<dt>Coroa</dt><dd>{sp["coroa"]} dentes</dd><dt>Pinhão</dt><dd>{sp["pinhao"]} dentes</dd>'
             f'<dt>Corrente</dt><dd>{sp["corrente"]}, {sp["elos"]} elos{", com retentor (O-ring)" if sp["retentor"] else ", sem retentor"}</dd>')
 
+def kit_lista(p):
+    """'O que vem no kit': cada peça com foto, preço dela e a conta no fim. É a 'Produtos do kit' das lojas grandes, com a soma à vista."""
+    linhas = "".join(
+        f'<li><a class="kfoto" href="{x["url"]}" tabindex="-1">{f"""<img src="{x["fotos"][0]}" alt="" loading="lazy">""" if x["fotos"] else icon(x["categoria"])}</a>'
+        f'<div class="knome"><a href="{x["url"]}">{e(x["nome"])}</a><span>1 unidade{(". " + e(x["spec"])) if x.get("spec") else ""}</span></div>'
+        f'<div class="kpreco">{brl(x["preco"])}</div></li>' for x in p["itens"])
+    conta = (f'<div class="kconta"><div><span>Comprando separado</span><s>{brl(p["separado"])}</s></div>'
+             f'<div class="kfinal"><span>No kit</span><b>{brl(p["preco"])}</b></div>'
+             f'<p>Você economiza {brl(p["economia"])} e recebe tudo na mesma entrega.</p></div>') if p["economia"] > 0 else ""
+    return f'<section class="kitbox" aria-labelledby="kitt"><h2 id="kitt">O que vem no kit</h2><ul>{linhas}</ul>{conta}</section>'
+
+def no_kit(p):
+    """Na página da peça: o kit que já traz essa peça, com a economia real."""
+    ks = sorted(p.get("em_kits", []), key=lambda k: -k["economia"])[:2]
+    if not ks:
+        return ""
+    return '<div class="nokit"><b>Leve no kit e pague menos</b>' + "".join(
+        f'<a href="{k["url"]}"><span>{e(k.get("titulo") or k["nome"])}</span><span class="nk">{brl(k["preco"])}<small>economize {brl(k["economia"])}</small></span></a>' for k in ks) + "</div>"
+
 def produto(p, ps=()):
     img = f'<img id="fotomain" src="{p["fotos"][0]}" alt="{e(p["nome"])}">' if p["fotos"] else icon(p["categoria"])
+    kit = p.get("itens")
     thumbs = "".join(f'<button type="button" class="thumb" data-foto="{f}" aria-label="Foto {i+1}"><img src="{f}" alt="" loading="lazy"></button>' for i, f in enumerate(p["fotos"])) if len(p["fotos"]) > 1 else ""
+    if kit:
+        img, thumbs = colagem(p, grande=True), ""
     opts = "".join(f'<option value="{c["slug"]}">{e(c["nome"])}</option>' for c in CFG["cidades"])
     veic = "".join(f"<li>{e(veiculo_legivel(v))}</li>" for v in p["veiculos"])
     zap = lambda t: f'https://wa.me/{CFG["whatsapp"]}?text=' + quote(t)
@@ -411,9 +467,9 @@ def produto(p, ps=()):
     desc = p["descricao"]
     corpo = f'''<div class="wrap"><nav class="crumbs" aria-label="Caminho"><a href="index.html">Início</a> › <a href="catalogo.html?tipo={p["tipo"]}">Peças de {TIPOS[p["tipo"]].lower()}</a> › <a href="catalogo.html?tipo={p["tipo"]}&cat={p["categoria"]}">{CATS[p["categoria"]]}</a></nav>
 <div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
-<div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p["nome"])}</h1>
-{f'<p class="specline">{e(p["spec"])}</p>' if p.get("spec") else ""}
-<div class="pricebox"><div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{", agora ou na entrega" if NA_ENTREGA else ""}</div></div>
+<div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p.get("titulo") or p["nome"])}</h1>
+{f'<p class="specline">{e(p.get("conteudo") or p["spec"])}</p>' if p.get("spec") or p.get("conteudo") else ""}
+<div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{", agora ou na entrega" if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if p["estoque"] <= 3 else ""}
 <p class="corte" data-corte>Pedido até {CFG["corte_mesmo_dia"]} chega hoje até as {CFG["entrega_ate"]}.</p>
 {'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
@@ -422,11 +478,13 @@ def produto(p, ps=()):
 <button class="btn ghost" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button></div>
 <div class="ship"><label class="lbl" for="shipcity">Frete para</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
 {confianca()}
+{no_kit(p)}
 <a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande o modelo e o ano no WhatsApp</a>
 </div></div>
+{kit_lista(p) if kit else ""}
 {junto_html}
 <section class="prose"><h2>Detalhes</h2><p>{e(desc)}</p>
-<dl class="facts">{ficha(p)}<dt>Serve em</dt><dd><ul>{veic}</ul></dd><dt>Marca</dt><dd>{e(p["marca"])}</dd><dt>Código</dt><dd>{e(p["sku"])}</dd><dt>Garantia</dt><dd>90 dias contra defeito de fabricação. Troca em até 7 dias se não servir.</dd></dl>
+<dl class="facts">{ficha(p)}<dt>Serve em</dt><dd><ul>{veic}</ul></dd><dt>Marca</dt><dd>{e(", ".join(dict.fromkeys(x["marca"] for x in kit)) if kit else p["marca"])}</dd><dt>Código</dt><dd>{e(p["sku"])}</dd><dt>Garantia</dt><dd>90 dias contra defeito de fabricação. Troca em até 7 dias se não servir.</dd></dl>
 {f'<p class="motolinks">{motos_links}</p>' if motos_links else ""}</section>
 </div>'''
     ld = [{"@context": "https://schema.org", "@type": "Product", "name": p["nome"], "sku": p["sku"], "mpn": p["sku"], "description": desc,
@@ -504,8 +562,8 @@ def cidade(c, ps):
 
 def pagina_moto(nome, sl, fams, marca, ps):
     proprias = pecas_da_moto(ps, fams)
-    kits = [p for p in proprias if p["categoria"] == "kit"]
-    proprias = kits + [p for p in proprias if p["categoria"] != "kit"]
+    kits = sorted([p for p in proprias if p["categoria"] == "kit"], key=lambda k: -k.get("economia", 0))
+    proprias = [p for p in proprias if p["categoria"] != "kit"]
     gerais = [p for p in ps if p.get("universal") and p["tipo"] == "moto"]
     tipos = []
     for p in proprias:
@@ -516,12 +574,13 @@ def pagina_moto(nome, sl, fams, marca, ps):
     corpo = f'''<div class="hero"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
 <p>{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</p>
 <div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span></div></div></div>
-<section><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
+{f'<section class="kitsmoto"><div class="wrap"><h2>Kits prontos para a {e(nome)}</h2><p class="note">Peças que se trocam juntas, já separadas. O kit sai mais barato que comprar uma por uma.</p><div class="grid">{"".join(card(p, fams) for p in kits)}</div></div></section>' if kits else ""}
+<section{' style="padding-top:0"' if kits else ""}><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
 {f'<section style="padding-top:0"><div class="wrap"><h2>Servem em qualquer moto</h2><div class="grid">{"".join(card(p) for p in gerais)}</div></div></section>' if gerais else ""}
 <section style="padding-top:0"><div class="wrap prose"><h2>Não achou a peça da sua {e(nome)}?</h2><p>Mande o ano da moto e a peça no WhatsApp {e(CFG["whatsapp_exibir"])}. A gente confere na distribuidora e responde com o preço.</p>
 <h2 style="margin-top:28px">Outras motos</h2><div class="cats">{outras}</div></div></section>'''
     ld = [{"@context": "https://schema.org", "@type": "ItemList", "name": f"Peças para {marca} {nome}",
-           "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{URL}/{p['url']}", "name": p["nome"]} for i, p in enumerate(proprias)]}]
+           "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{URL}/{p['url']}", "name": p["nome"]} for i, p in enumerate(kits + proprias)]}]
     pagina(f"{sl}.html", f"Peças para {marca} {nome} com entrega hoje na Grande Vitória | Loja Dias",
            f"Peças para {marca} {nome}: {lista}. Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Frete grátis acima de {brl(GRATIS)}.",
            corpo, ld)

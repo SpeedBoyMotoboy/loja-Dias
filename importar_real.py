@@ -2,6 +2,7 @@
 """Converte o CSV do robô da Real (real_catalogo_ultimo.csv) em dados/produtos.csv.
 
 Uso: python3 importar_real.py caminho/real_catalogo_ultimo.csv [--max 100]
+     python3 importar_real.py --so-kits   (refaz só os kits em cima do produtos.csv atual)
 Preço de venda = regra de margem do build.py (coluna custo). Só entra peça com custo > 0 e em estoque.
 """
 import csv, re, sys, unicodedata
@@ -14,14 +15,88 @@ import json
 SO_MOTO = json.load(open(RAIZ / "dados/config.json", encoding="utf-8")).get("so_moto", False)
 ESTOQUE_MIN = 3   # mínimo na Real para a peça entrar no site
 # Kits (Mesa 24/11): só entram se todas as peças estão no site. Preço = soma das peças com 5% off.
+# 25/11: kits no formato das lojas grandes (kit relação + freio, kit revisão, par dianteira + traseira).
+# A lista de motos do kit NÃO é escrita à mão: é o que todas as peças do kit têm em comum (modelo e ano).
+# 4º campo (opcional): mostra só os modelos que começam assim, para o kit não aparecer em moto que o nome dele não cita.
 KITS = [
-    ("KIT-FREIO-CG", "Kit Freio CG 150/160: pastilha dianteira Cobreq + fluido de freio DOT3 TRW", "freio", ["N949MO", "RCLF00021"],
-     "HONDA CG 160 FAN 2015-2026 CG 150 FAN 2010-2015 CG 150 TITAN 2009-2015"),
-    ("KIT-IGNICAO-CG", "Kit Ignição e Ar CG 150/160: vela NGK + filtro de ar Wega + lâmpada H4", "ignicao", ["CPR8EA9", "JFA0M72", "90208030"],
-     "HONDA CG 160 FAN 2019-2026 CG 160 TITAN 2019-2026 CG 150 FAN 2014-2026"),
-    ("KIT-MANETES-BROS", "Kit Manetes reserva Bros 150 / XRE 300: manete de freio + manete de embreagem", "acessorio", ["001497", "001499"],
-     "HONDA NXR 150 BROS 2006-2015 XRE 300 2009-2026"),
+    ("KIT-FREIO-CG", "Kit Freio CG 150/160: pastilha dianteira Cobreq + fluido de freio DOT3 TRW", ["N949MO", "RCLF00021"], ("CG ",)),
+    ("KIT-IGNICAO-CG", "Kit Ignição e Ar CG 150/160: vela NGK + filtro de ar Wega + lâmpada H4", ["CPR8EA9", "JFA0M72", "90208030"]),
+    ("KIT-MANETES-BROS", "Kit Manetes reserva Bros 150 / XRE 300: manete de freio + manete de embreagem", ["001497", "001499"], ("NXR 150 BROS", "XRE 300")),
+    ("KIT-MANUTENCAO-CG160", "Kit Manutenção CG 160 Fan/Titan 2019 em diante: kit relação + pastilha dianteira + vela NGK + filtro de ar", ["0009KR", "DFP20906", "CPR8EA9", "JFA0M72"]),
+    ("KIT-RELACAO-FREIO-CG160", "Kit Relação + Freio CG 160 Fan/Titan 2019 em diante: kit relação Cobreq + pastilha dianteira Diafrag", ["0009KR", "DFP20906"]),
+    ("KIT-RELACAO-FREIO-CG150", "Kit Relação + Freio CG 150 Titan/Fan 2010 a 2015: kit relação Cobreq + pastilha dianteira Cobreq", ["0008KR", "N949MO"]),
+    ("KIT-MANUTENCAO-BROS160", "Kit Manutenção Bros 160: kit relação + pastilha dianteira + filtro de ar", ["0003KR", "N917MO", "FAP1002"]),
+    ("KIT-RELACAO-FREIO-BROS160", "Kit Relação + Freio Bros 160 / XRE 190: kit relação Cobreq + pastilha dianteira Cobreq", ["0003KR", "N917MO"]),
+    ("KIT-RELACAO-FREIO-BROS150", "Kit Relação + Freio Bros 150: kit relação Cobreq + pastilha dianteira Cobreq", ["0004KR", "N917MO"]),
+    ("KIT-FREIO-BROS", "Kit Freio Bros / XRE: pastilha dianteira Cobreq + fluido de freio DOT3 TRW", ["N917MO", "RCLF00021"], ("NXR ", "XRE ")),
+    ("KIT-REVISAO-FAZER150", "Kit Revisão Fazer 150 / Crosser 150: vela NGK + filtro de ar Wega + filtro de óleo Wega", ["MR8D9", "JFA0M89", "JFO0019"]),
+    ("KIT-PASTILHAS-LANDER", "Kit Pastilhas Lander 250 / Ténéré 250: pastilha dianteira Cobreq + pastilha traseira Diafrag", ["N1834MO", "DFP20839"]),
+    ("KIT-RELACAO-VELA-BIZ", "Kit Relação + Vela Biz 110i: kit relação Cobreq + vela NGK", ["0002KR", "CPR6EA9S"]),
+    ("KIT-PEDALEIRAS-CG160", "Kit Pedaleiras traseiras CG 160: direita + esquerda", ["MMPD012", "MMPD011"], ("CG ",)),
 ]
+
+def motos_em_comum(listas):
+    """Modelos (com faixa de ano) que aparecem em TODAS as peças. Peça universal não restringe. Fim em branco = até hoje."""
+    mapas = []
+    for veic in listas:
+        if veic.lower().startswith("universal"):
+            continue
+        d = {}
+        for v in veic.split(";"):
+            m = re.match(r"^(.*?)\s+(\d{4})-(\d{4})?$", v.strip())
+            if m:
+                d[m.group(1)] = (int(m.group(2)), int(m.group(3) or 2026))
+        mapas.append(d)
+    if not mapas:
+        return []
+    out = []
+    for modelo in mapas[0]:
+        if all(modelo in d for d in mapas):
+            ini, fim = max(d[modelo][0] for d in mapas), min(d[modelo][1] for d in mapas)
+            if ini <= fim:
+                out.append(f"{modelo} {ini}-{fim}")
+    return out
+
+def montar_kits(por):
+    """por = {sku: linha do produtos.csv}. Devolve as linhas dos kits que dá para montar."""
+    from build import _noventa
+    kits = []
+    for ksku, knome, partes, *so in KITS:
+        if not all(p in por for p in partes):
+            print("kit fora (peça ausente):", ksku)
+            continue
+        veic = motos_em_comum([por[p]["veiculos"] for p in partes])
+        if so:
+            veic = [v for v in veic if v.startswith(so[0])]
+        if not veic:
+            print("kit fora (peças sem moto em comum):", ksku)
+            continue
+        custo = sum(float(por[p]["custo"]) for p in partes)
+        soma = sum(preco_de_custo(float(por[p]["custo"]), por[p]["categoria"], por[p]["nome"], float(por[p]["ml_medio"]) if (por[p].get("ml_medio") or "").strip() else None) for p in partes)
+        preco = _noventa(soma * 0.95 - 1)
+        if preco - custo < 8:
+            preco = _noventa(custo + 8)
+        if preco >= soma:  # kit que não sai mais barato que separado não é kit
+            print("kit fora (não fica mais barato):", ksku)
+            continue
+        kits.append({"sku": ksku, "nome": knome, "tipo": "moto", "categoria": "kit", "marca": "Loja Dias",
+                     "veiculos": ";".join(veic), "preco": f"{preco:.2f}", "custo": f"{custo:.2f}",
+                     "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "", "partes": ";".join(partes),
+                     "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
+    return kits
+
+CAMPOS = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "ml_medio", "estoque", "imagem", "descricao", "partes"]
+
+def so_kits():
+    """Refaz só os kits em cima do dados/produtos.csv que já existe (sem precisar do CSV do robô)."""
+    arq = RAIZ / "dados/produtos.csv"
+    linhas = [r for r in csv.DictReader(open(arq, encoding="utf-8")) if r["categoria"] != "kit"]
+    saida = montar_kits({r["sku"]: r for r in linhas}) + linhas
+    with open(arq, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=CAMPOS, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(saida)
+    print(f"{len(saida) - len(linhas)} kits, {len(linhas)} peças em dados/produtos.csv")
 
 def norm(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
@@ -96,6 +171,8 @@ def categoria(txt):
     return ""
 
 def main():
+    if "--so-kits" in sys.argv:
+        return so_kits()
     src = Path(sys.argv[1])
     mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 100
     saida, vistos, revisao = [], set(), []
@@ -132,24 +209,8 @@ def main():
                       "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
         if len(saida) >= mx:
             break
-    from build import _noventa
-    por = {s["sku"]: s for s in saida}
-    kits = []
-    for ksku, knome, kcat, partes, apl in KITS:
-        if not all(p in por for p in partes):
-            print("kit fora (peça ausente):", ksku)
-            continue
-        custo = sum(float(por[p]["custo"]) for p in partes)
-        soma = sum(preco_de_custo(float(por[p]["custo"]), por[p]["categoria"], por[p]["nome"]) for p in partes)
-        preco = _noventa(soma * 0.95 - 1)
-        if preco - custo < 8:
-            preco = _noventa(custo + 8)
-        kits.append({"sku": ksku, "nome": knome, "tipo": "moto", "categoria": "kit", "marca": "Loja Dias",
-                     "veiculos": ";".join(modelos(apl)), "preco": f"{preco:.2f}", "custo": f"{custo:.2f}",
-                     "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "", "partes": ";".join(partes),
-                     "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
-    saida = kits + saida
-    campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "ml_medio", "estoque", "imagem", "descricao", "partes"]
+    saida = montar_kits({s["sku"]: s for s in saida}) + saida
+    campos = CAMPOS
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=campos)
         w.writeheader()
