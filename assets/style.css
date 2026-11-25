@@ -171,7 +171,7 @@ footer a:hover{color:var(--accent)}
 :root[data-theme="dark"] .catbar a:not(.moto){background:#1b2127}
 
 /* Black Friday: fita de obra (amarelo e asfalto) em cima e embaixo */
-.bf{background:var(--road);color:var(--road-ink);padding-block:34px 30px;margin-block:8px 28px;position:relative}
+.bf{background:var(--road);color:var(--road-ink);padding-block:34px 30px;margin-block:0 28px;position:relative}
 .bf::before,.bf::after{content:"";position:absolute;left:0;right:0;height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,var(--road) 14px 28px)}
 .bf::before{top:0}.bf::after{bottom:0}
 .bf .bfimg{width:100%;height:auto;aspect-ratio:4/1;object-fit:cover;border-radius:12px;margin-bottom:18px;display:block}
@@ -182,3 +182,15 @@ footer a:hover{color:var(--accent)}
 .bf .save{font-size:13px;font-weight:600;color:var(--ok);margin:4px 0 2px}
 .bf p:last-child{margin:18px 0 0}
 @media (max-width:640px){.bf .grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-inline:-16px;padding-inline:16px;scroll-padding-inline:16px;scrollbar-width:none}.bf .grid::-webkit-scrollbar{display:none}.bf .grid .card{flex:0 0 78%;scroll-snap-align:start}}
+/* revisão de design 25/11: topo mais baixo no celular, filtros do catálogo em uma linha que rola */
+@media (max-width:640px){
+  .demo{font-size:12px;padding:5px 12px}
+  .top .wrap{position:relative;padding-block:12px 8px;gap:8px}
+  .top .logo{font-size:24px}
+  .top .nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;width:100%;gap:18px}
+  .top .nav::-webkit-scrollbar{display:none}
+  .top .nav .cartlink{position:absolute;top:8px;right:max(16px,env(safe-area-inset-right,0px));padding:6px 12px}
+  #cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+  #cats::-webkit-scrollbar{display:none}
+  #cats button{flex:0 0 auto}
+}

@@ -52,7 +52,7 @@
         const p = P.find(x=>x.sku===c.dataset.sku);
         const ok = (t==="todos"||p.tipo===t) && (cat==="todas"||p.categoria===cat)
           && (!v || p.modelos.includes(v))
-          && terms.every(w => norm(p.nome+" "+p.sku+" "+p.marca+" "+p.veiculos.join(" ")).includes(w));
+          && terms.every(w => norm(p.nome+" "+(p.nome_real||"")+" "+p.sku+" "+p.marca+" "+p.veiculos.join(" ")).includes(w));
         c.hidden = !ok; if(ok) n++;
       });
       $("#none").hidden = n>0;

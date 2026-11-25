@@ -99,6 +99,27 @@ def fotos_de(sku, partes=""):
         out += [f"img/{f.name}" for f in sorted((RAIZ / "img").glob(f"{_fsku(pt)}-*.webp"))[:1]]
     return out
 
+ACENTOS = {"organica": "orgânica", "camara": "câmara", "ignicao": "ignição", "lampada": "lâmpada", "transmissao": "transmissão",
+           "oleo": "óleo", "fluído": "fluido", "eletrica": "elétrica", "suspensao": "suspensão", "relacao": "relação", "valvula": "válvula",
+           "tras": "trás", "embreagem": "embreagem", "acelerador": "acelerador", "velocimetro": "velocímetro", "pneumatico": "pneumático", "sinalizacao": "sinalização", "dianteiro": "dianteiro"}
+
+def nome_vitrine(nome, cat=""):
+    """Nome da Real vem em maiúsculas com código e marca. Na loja mostra frase normal + marca; o código fica no SKU."""
+    partes = [x.strip() for x in nome.split(" - ")]
+    if len(partes) < 3:
+        return nome
+    desc, marca = partes[0], partes[-1]
+    desc = re.sub(r"^ÓLEO FLUÍDO DE FREIO", "FLUIDO DE FREIO", desc, flags=re.I)
+    pal = []
+    for w in desc.split():
+        lw = w.lower()
+        pal.append(w if re.search(r"\d", w) else ACENTOS.get(lw, lw))
+    txt = " ".join(pal)
+    txt = txt[:1].upper() + txt[1:]
+    marca = marca if len(marca) <= 3 else marca.title()
+    cod = f" {partes[1]}" if cat in ("ignicao", "eletrica") and not re.search(r"\d", desc) else ""
+    return f"{txt}{cod} {marca}"
+
 def carregar():
     ps = []
     for r in csv.DictReader(open(RAIZ / ("dados/produtos_exemplo.csv" if EXEMPLO else "dados/produtos.csv"), encoding="utf-8")):
@@ -116,6 +137,7 @@ def carregar():
         p["fotos"] = fotos_de(p["sku"], r.get("partes", ""))
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
+        p["nome_real"], p["nome"] = p["nome"], nome_vitrine(p["nome"], p["categoria"])  # slug/URL continuam do nome original
         ps.append(p)
     return ps
 
@@ -185,9 +207,9 @@ def card(p):
     img = f'<img src="{p["fotos"][0]}" alt="{e(p["nome"])}" loading="lazy">' if p["fotos"] else icon(p["categoria"])
     fit = ", ".join(p["modelos"][:3]) + ("…" if len(p["modelos"]) > 3 else "")
     low = p["estoque"] <= 3
-    return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1"><span class="tag">{TIPOS[p["tipo"]]} · {CATS[p["categoria"]]}</span>{img}</a>
+    return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1"><span class="tag">{"" if SO_MOTO else TIPOS[p["tipo"]] + " · "}{CATS[p["categoria"]]}</span>{img}</a>
 <div class="body"><h3><a href="{p["url"]}">{e(p["nome"])}</a></h3><div class="fit">Serve: {e(fit)}</div>
-<div class="sku">{e(p["marca"])} · {e(p["sku"])}</div><div class="stock{' low' if low else ''}">{'Últimas %d unidades' % p['estoque'] if low else 'Em estoque'}</div>
+{"" if p["categoria"] == "kit" else f'<div class="sku">{e(p["marca"])} · cód. {e(p["sku"])}</div>'}<div class="stock{' low' if low else ''}">{'Últimas %d unidades' % p['estoque'] if low else 'Em estoque'}</div>
 {selo(p)}<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
 <button class="add" type="button" data-add="{e(p["sku"])}">Adicionar</button></div></div></article>'''
 
@@ -245,6 +267,11 @@ def black_friday(ps, destaque):
 <div class="grid">{"".join(kcard(p) for p in kits)}{"".join(card(p) for p in extra)}</div>
 <p><a class="btn" href="catalogo.html?cat=kit">Ver todos os kits</a></p></div></section>'''
 
+PORTAS = '''<section><div class="wrap split">
+<a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>
+<a class="door" href="catalogo.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria e correia para Onix, HB20, Gol, Argo e mais.</span></a>
+</div></section>'''
+
 def home(ps, artifact=False):
     if VITRINE:
         return home_vitrine(artifact)
@@ -257,9 +284,7 @@ def home(ps, artifact=False):
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de ar Bros" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
 <div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
-<section><div class="wrap split">
-<a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>{"" if SO_MOTO else '\n<a class="door" href="catalogo.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria e correia para Onix, HB20, Gol, Argo e mais.</span></a>'}
-</div></section>
+{"" if SO_MOTO else PORTAS}
 {black_friday(ps, destaque)}
 <section style="padding-top:0"><div class="wrap"><h2>Mais procuradas</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
 <p><a class="btn dark" href="catalogo.html">Ver todas as peças</a></p></div></section>
@@ -281,7 +306,7 @@ def catalogo(ps):
     corpo = f'''<section><div class="wrap"><h1>Peças de moto e carro</h1>
 <p class="note">Entrega por motoboy em toda a Grande Vitória. Não achou? Chame no WhatsApp.</p>
 <div class="filters"><input id="q" type="search" placeholder="Buscar peça, código ou modelo" aria-label="Buscar">
-<select id="tipo" aria-label="Moto ou carro"><option value="todos">Moto e carro</option><option value="moto">Moto</option>{"" if SO_MOTO else '<option value="carro">Carro</option>'}</select>
+<select id="tipo" aria-label="Moto ou carro"{" hidden" if SO_MOTO else ""}><option value="todos">Moto e carro</option><option value="moto">Moto</option>{"" if SO_MOTO else '<option value="carro">Carro</option>'}</select>
 <select id="veic" aria-label="Seu veículo"></select></div>
 <div class="cats" id="cats" style="margin-bottom:16px">{botoes}</div>
 <div class="grid" id="grid">{"".join(card(p) for p in ps)}<p class="empty" id="none" hidden>Nenhuma peça encontrada com esses filtros. Mande o modelo e a peça no WhatsApp que a gente procura.</p></div>
@@ -451,7 +476,7 @@ def extras(ps):
 <g:google_product_category>{"Vehicles &amp; Parts &gt; Vehicle Parts &amp; Accessories &gt; Motor Vehicle Parts"}</g:google_product_category></item>
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
-    pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
+    pub = [{k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["frete_gratis_acima"] = GRATIS
