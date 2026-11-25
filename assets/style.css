@@ -402,3 +402,18 @@ footer{background:#1a1a1a}
 @media (max-width:380px){.top .nav .cartlink{padding:6px 10px;gap:6px}}
 .hero2 .wrap>*,.maisv li>*{min-width:0}
 .hero2 .hl{grid-template-columns:minmax(0,1fr)}.search input{width:100%}
+
+/* Indique e ganhe (25/11) */
+.indfaixa{background:var(--gold-soft);color:var(--ink);text-align:center;font-size:14px;padding:7px 16px;border-bottom:1px solid var(--line)}
+.indtag{font-size:12px;color:var(--green);font-weight:700}
+.indique .panel{margin:18px 0}
+.indique .panel h2{margin-top:0}
+.indique .field input,.indique textarea,.linkbox input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface);color:var(--ink);font:inherit}
+.indique textarea{resize:none;font-size:14px;margin:6px 0 8px}
+.indique .btn{width:100%;margin-top:8px}
+.linkbox{display:flex;gap:8px;align-items:stretch;margin:8px 0}
+.linkbox .btn{width:auto;margin:0;white-space:nowrap}
+.indique .codigo{font-family:var(--mono);font-size:20px;letter-spacing:1px;color:var(--blue)}
+.indique ol{padding-left:22px}
+.indique ol li{margin:6px 0}
+.btn.share{width:100%;margin-top:10px}
