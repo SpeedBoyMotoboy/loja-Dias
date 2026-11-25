@@ -118,7 +118,7 @@ def head(title, desc, path, extra_ld=None, artifact=False):
 
 def topo():
     demo = '<div class="demo">Prévia: peças, preços e fretes são exemplos. O catálogo real virá das distribuidoras.</div>' if DEMO else ""
-    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)}</div>' if GRATIS and FRETE_OK else ""
+    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} (Serra e Viana: acima de R$ 89,90)</div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Moto</a><a href="{lk("carro")}">Carro</a>
@@ -159,13 +159,13 @@ def tabela_frete():
     if not FRETE_OK:
         rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
         return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Prazo</th><th>Frete</th></tr></thead><tbody>{rows}</tbody></table></div>'
-    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
-    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> em pedidos a partir de {brl(GRATIS)}.</p>' if GRATIS else "")
+    rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>{brl(c.get("gratis_acima") or GRATIS) if GRATIS else "—"}</td><td>mesmo dia</td></tr>' for c in CFG["cidades"])
+    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Grátis acima de</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana.</p>' if GRATIS else "")
 
 FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam no mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
- ("Tem frete grátis?", f"Sim. Pedidos a partir de {brl(GRATIS)} têm frete grátis em toda a Grande Vitória." if GRATIS else "Não no momento."),
+ ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
  ("Quais formas de pagamento?", "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido."),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
  ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),

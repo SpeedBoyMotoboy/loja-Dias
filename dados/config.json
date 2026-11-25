@@ -13,27 +13,32 @@
     {
       "nome": "Vitória",
       "slug": "vitoria",
-      "normal": 10
+      "normal": 10,
+      "gratis_acima": 49.9
     },
     {
       "nome": "Vila Velha",
       "slug": "vila-velha",
-      "normal": 10
+      "normal": 10,
+      "gratis_acima": 49.9
     },
     {
       "nome": "Serra",
       "slug": "serra",
-      "normal": 15
+      "normal": 15,
+      "gratis_acima": 89.9
     },
     {
       "nome": "Cariacica",
       "slug": "cariacica",
-      "normal": 10
+      "normal": 10,
+      "gratis_acima": 49.9
     },
     {
       "nome": "Viana",
       "slug": "viana",
-      "normal": 15
+      "normal": 15,
+      "gratis_acima": 89.9
     }
   ],
   "fornecedor_principal": "Real Motopeças (ES)",

@@ -69,7 +69,7 @@
   if(shipSel){
     const out = $("#shipout");
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
-      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${C.frete_gratis_acima?` (grátis a partir de ${brl(C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
+      out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${(c.gratis_acima||C.frete_gratis_acima)?` (grátis a partir de ${brl(c.gratis_acima||C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia} chega hoje; depois, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
   }
 
@@ -83,10 +83,11 @@
       const pix = true;
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
-      const gratis = C.frete_gratis_acima && sub>=C.frete_gratis_acima;
+      const lim = city ? (city.gratis_acima||C.frete_gratis_acima) : null;
+      const gratis = !!(lim && sub>=lim);
       const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
-      return {items,sub,desc,frete,ship,city,pix,gratis,total:sub-desc+(frete||0)};
+      return {items,sub,desc,frete,ship,city,pix,gratis,lim,total:sub-desc+(frete||0)};
     };
     const refresh = () => {
       const t = totals(); badge();
@@ -98,7 +99,7 @@
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
         + `<span>Entrega</span><span>${t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
-        + (C.frete_gratis_acima&&!t.gratis&&t.items.length?`<span class="note" style="grid-column:1/-1">Faltam ${brl(C.frete_gratis_acima-t.sub)} para frete grátis.</span>`:"")
+        + (t.lim&&!t.gratis&&t.items.length&&t.ship!=="retirada"?`<span class="note" style="grid-column:1/-1">Faltam ${brl(t.lim-t.sub)} para frete grátis em ${t.city.nome}.</span>`:"")
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
       $("#addrbox").hidden = !ent; $("#citybox").hidden = !ent;
