@@ -1,7 +1,7 @@
 {
   "_obs": "Fretes confirmados pelo Luan em 24/11.",
   "nome_loja": "Loja Dias Peças",
-  "site_url": "https://speedboymotoboy.github.io/loja-Dias",
+  "site_url": "https://lojadias.com.br",
   "whatsapp": "5527999165959",
   "whatsapp_exibir": "(27) 99916-5959",
   "endereco": "Vila Velha, ES",
@@ -63,5 +63,6 @@
   "google_ads_id": "AW-16976838076",
   "google_ads_label": "y90BCIDl-74dELz7l58_",
   "black_friday": true,
-  "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ"
+  "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ",
+  "dominio": "lojadias.com.br"
 }
