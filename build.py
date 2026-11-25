@@ -450,7 +450,7 @@ def minha_conta():
 def privacidade():
     corpo = f'''<section><div class="wrap prose" style="max-width:760px"><h1>Privacidade</h1>
 <p>Esta página explica, conforme a LGPD (Lei 13.709/2018), quais dados a {e(CFG["nome_loja"])} (CNPJ {e(CFG.get("cnpj",""))}) guarda, para quê e por quanto tempo.</p>
-<h2>Comprar sem conta</h2><p>Criar conta é opcional. Sem conta, o site não guarda nada seu: o carrinho fica só no seu aparelho e o pedido vai direto para o nosso WhatsApp.</p>
+<h2>Comprar sem conta</h2><p>Criar conta é opcional. Sem conta, a loja não guarda nada seu: o carrinho fica só no seu aparelho e o pedido vai direto para o nosso WhatsApp.</p>
 <h2>O que guardamos se você criar conta</h2><ul>
 <li>Do login Google: nome, e-mail e um código interno da conta. Nunca vemos sua senha.</li>
 <li>O que você preencher: nome para entrega, WhatsApp, cidade e endereço.</li>
@@ -458,6 +458,7 @@ def privacidade():
 <li>Se você preencher: modelo da moto, km por dia, intervalo de troca de óleo e datas das últimas trocas (óleo, relação, pastilha).</li></ul>
 <p>Não guardamos CPF, dados de cartão nem dados bancários. O pagamento é por Pix, feito no app do seu banco.</p>
 <h2>Para quê</h2><p>Só para entregar seus pedidos, preencher o endereço automaticamente, mostrar seu histórico, contar os pedidos do programa de fidelidade (6º pedido com frete grátis) e, <b>só se você marcar</b>, lembrar no WhatsApp quando chegar a hora da troca. Você pode desmarcar o lembrete quando quiser. Não vendemos nem compartilhamos seus dados para propaganda.</p>
+{'<h2>Anúncios do Google</h2><p>O site usa a tag do Google Ads para saber se um anúncio trouxe uma venda. O Google pode gravar cookies no seu navegador para isso. Quando um pedido é enviado, mandamos ao Google só o valor e o código do pedido, sem nome, telefone ou endereço. Você pode bloquear esses cookies no navegador ou desligar anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>.</p>' if CFG.get("google_ads_id") else ""}
 <h2>Onde ficam</h2><p>No Google Firebase (servidor em São Paulo). Cada cliente só consegue ver os próprios dados.</p>
 <h2>Por quanto tempo</h2><p>Enquanto sua conta existir. Você pode apagar tudo quando quiser em <a href="minha-conta.html">Minha conta</a> › Apagar minha conta. Isso apaga seus dados, seu histórico e o acesso de login na hora. Conversas no WhatsApp seguem as regras do WhatsApp.</p>
 <h2>Seus direitos</h2><p>Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento pelo WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
