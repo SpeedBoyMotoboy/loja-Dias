@@ -215,6 +215,43 @@ MOTOS = [("CG 160", "pecas-cg-160", ["CG 160"], "Honda"), ("CG 150", "pecas-cg-1
          ("XRE 190", "pecas-xre-190", ["XRE 190"], "Honda"), ("Fazer 250", "pecas-fazer-250", ["Fazer 250"], "Yamaha"),
          ("Lander e Ténéré 250", "pecas-lander-tenere-250", ["Lander 250", "Ténéré 250"], "Yamaha"),
          ("Twister e CB 300", "pecas-twister-cb-300", ["Twister 250", "Twister 300", "CB 300"], "Honda"), ("PCX 150", "pecas-pcx-150", ["PCX 150"], "Honda")]
+# Foto de cada moto (25/11, pedido do Luan). Só entra foto com licença livre (Wikimedia Commons), com crédito em creditos.html.
+# Moto sem foto livre fica com o desenho até ter foto própria. NÃO usar foto de fabricante sem o Luan decidir.
+# slug: (arquivo no Commons, autor, licença, link da licença)
+FOTOS_MOTO = {
+    "cg-150": ("Moto_Honda_Flex_Titan_CG_150_Mix_Fuel_Injection_06_2009_Itu.jpg", "Mariordo (Mario Roberto Duran Ortiz)", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
+    "cg-125": ("CG01.JPG", "Gelsi", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
+    "biz": ("Honda_C100_Biz_049.jpg", "Gnomoazul", "Domínio público", ""),
+    "factor": ("Factor.png", "Mairlonblack", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0"),
+    "xre-300": ("Honda_XRE300_ano2010.jpg", "Borowskki", "Domínio público", ""),
+    "fazer-250": ("YAMAHA_YS250_Fazer_Yamaha_Communication_Plaza.jpg", "PekePON", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
+    "lander-tenere-250": ("Lander250jamil.jpg", "Onjacktallcuca", "Domínio público", ""),
+    "twister-cb-300": ("HONDA_CBX_250_TWISTER.jpg", "Al1997", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
+    "pcx-150": ("Honda_PCX_150_2012_03.jpg", "M.rJirapat", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt-br"),
+}
+MOTO_DESENHO = ('<svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                '<circle cx="12" cy="32" r="8.500"/><circle cx="52" cy="32" r="8.500"/>'
+                '<path d="M12 32l9-8h12l5 8H24"/><path d="M52 32L44 12"/><path d="M40 10h7"/>'
+                '<path d="M26 16h11l5 7H24z" fill="currentColor"/><path d="M10 17h15l-1 5H14z" fill="currentColor"/>'
+                '<path d="M21 34h13" stroke-width="3.400"/><circle cx="47" cy="17" r="2.200" fill="currentColor"/></svg>')
+
+def foto_moto(sl):
+    """Caminho da foto da moto (img/motos/<slug>.webp) ou None. slug vem como 'pecas-cg-150'."""
+    k = sl.replace("pecas-", "", 1)
+    return f"img/motos/{k}.webp" if (RAIZ / "img/motos" / f"{k}.webp").exists() and (k in FOTOS_MOTO or (RAIZ / "img/motos" / f"{k}.propria").exists()) else None
+
+def creditos():
+    linhas = "".join(
+        f'<li><b>{e(n)}</b>: foto de {e(FOTOS_MOTO[k][1])}, <a href="https://commons.wikimedia.org/wiki/File:{quote(FOTOS_MOTO[k][0])}" rel="noopener nofollow">Wikimedia Commons</a>, '
+        + (f'licença <a href="{FOTOS_MOTO[k][3]}" rel="noopener nofollow">{e(FOTOS_MOTO[k][2])}</a>.' if FOTOS_MOTO[k][3] else f'{e(FOTOS_MOTO[k][2].lower())}.') + '</li>'
+        for n, sl, _, _ in MOTOS for k in [sl.replace("pecas-", "", 1)] if k in FOTOS_MOTO and foto_moto(sl))
+    corpo = f'''<section><div class="wrap prose"><h1>Créditos das fotos</h1>
+<p>As fotos das motos na página inicial são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p>
+<ul>{linhas}</ul>
+<p>As fotos servem só para você reconhecer o modelo. A Loja Dias não tem ligação com os fabricantes das motos. Honda e Yamaha são marcas dos seus donos.</p>
+<p>As fotos das peças são das distribuidoras e dos fabricantes das peças.</p></div></section>'''
+    pagina("creditos.html", "Créditos das fotos | Loja Dias Peças", "Autores e licenças das fotos de motos usadas no site da Loja Dias.", corpo)
+
 MOTOS_ATIVAS = []  # preenchido em main(): só moto com 3 peças próprias ou mais ganha página
 
 def pecas_da_moto(ps, fams):
@@ -238,7 +275,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a></div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a>{'<a href="creditos.html">Créditos das fotos</a>' if not VITRINE else ""}</div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener" aria-label="Falar com a loja no WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.200 8.200 0 0 1-4.200-1.150l-.300-.180-3 .790.800-2.900-.200-.300A8.200 8.200 0 1 1 12 20.200zm4.500-6.100c-.250-.120-1.460-.720-1.690-.800-.230-.080-.390-.120-.560.120-.160.250-.640.800-.780.970-.140.160-.290.180-.530.060-.250-.120-1.040-.380-1.980-1.220-.730-.650-1.230-1.460-1.370-1.700-.140-.250-.020-.380.110-.500.110-.110.250-.290.370-.430.120-.140.160-.250.250-.410.080-.160.040-.310-.020-.430-.060-.120-.560-1.340-.760-1.840-.200-.480-.410-.420-.560-.420h-.480c-.160 0-.430.060-.660.310-.230.250-.860.840-.860 2.050 0 1.210.880 2.380 1 2.540.120.160 1.740 2.650 4.200 3.720.590.250 1.050.400 1.400.520.590.190 1.130.160 1.550.100.470-.070 1.460-.600 1.670-1.170.200-.580.200-1.070.140-1.170-.060-.110-.220-.170-.470-.290z"/></svg><span>WhatsApp</span></a>
 <div class="buybar" id="buybar" hidden></div>
@@ -353,7 +390,9 @@ def home(ps, artifact=False):
                 destaque.append(p); vistos.add(p["sku"])
     else:
         destaque = [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
-    motos_tiles = "".join(f'<a href="{sl}.html"><b>{e(n)}</b><span>{len(pecas_da_moto(ps, fams))} peças</span></a>' for n, sl, fams, _ in MOTOS_ATIVAS)
+    motos_tiles = "".join(
+        f'<a href="{sl}.html"><span class="mf">{f"""<img src="{foto_moto(sl)}" alt="{e(marca)} {e(n)}" width="480" height="360" loading="lazy">""" if foto_moto(sl) else MOTO_DESENHO}</span>'
+        f'<span class="mt"><b>{e(n)}</b><span>{len(pecas_da_moto(ps, fams))} peças</span></span></a>' for n, sl, fams, marca in MOTOS_ATIVAS)
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     corpo = f'''<div class="hero"><div class="wrap">
 <span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
@@ -682,7 +721,7 @@ def main():
     ps = carregar()
     VITRINE = not ps
     MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
-    home(ps); home(ps, artifact=True); entrega(); privacidade()
+    home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos()
     if VITRINE:
         pedido()
     else:
