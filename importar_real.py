@@ -45,7 +45,7 @@ def numero(s):
 CATS = [  # (categoria, palavras)
     ("freio", ["pastilha", "lona", "sapata", "disco de freio", "freio"]),
     ("transmissao", ["relacao", "coroa", "pinhao", "corrente", "correia", "kit transmissao"]),
-    ("filtro", ["filtro"]),
+    ("filtro", ["filtro", "tela de oleo", "tela oleo", "tela filtro"]),
     ("oleo", ["oleo", "lubrificante"]),
     ("ignicao", ["vela", "bobina", "cdi"]),
     ("eletrica", ["bateria", "lampada", "farol", "pisca", "regulador", "estator", "chicote", "rele"]),
@@ -53,6 +53,7 @@ CATS = [  # (categoria, palavras)
     ("pneu", ["pneu", "camara"]),
     ("palheta", ["palheta"]),
     ("acessorio", ["retrovisor", "manete", "pedaleira"]),
+    ("suspensao", ["retentor", "bengala", "amortecedor"]),
 ]
 CARRO = ["onix", "hb20", "gol", "palio", "uno", "argo", "strada", "kwid", "corolla", "celta", "prisma", "fiesta", "ka ", "sandero", "civic", "fox", "polo", "saveiro"]
 

@@ -24,7 +24,7 @@ FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
-        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes", "kit": "Kits prontos"}
+        "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes", "kit": "Kits prontos", "suspensao": "Retentores e suspensão"}
 SO_MOTO = CFG.get("so_moto", False)  # Luan 24/11: por enquanto só 2 rodas
 TIPOS = {"moto": "Moto", "carro": "Carro"}
 ICON = {
@@ -37,6 +37,7 @@ ICON = {
  "oleo": '<path d="M22 14h14l8 8v30H18V18z"/><path d="M36 14v8h8M26 34c0 4 3 6 5 6s5-2 5-6c0-3-5-9-5-9s-5 6-5 9z"/>',
  "cabo": '<path d="M10 50c10 0 10-14 22-14s12-20 22-20"/><rect x="6" y="46" width="8" height="8"/><rect x="50" y="10" width="8" height="8"/>',
  "palheta": '<path d="M8 48 52 14"/><path d="M14 52 56 20" stroke-width="5"/><circle cx="8" cy="48" r="4"/>',
+ "suspensao": '<path d="M32 6v10M32 48v10"/><rect x="24" y="16" width="16" height="32" rx="3"/><path d="M24 26h16M24 36h16"/>',
  "kit": '<rect x="10" y="22" width="44" height="30" rx="3"/><path d="M24 22v-8h16v8M10 34h44"/>',
  "acessorio": '<ellipse cx="38" cy="22" rx="16" ry="11"/><path d="M28 30 12 54"/>',
 }
