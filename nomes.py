@@ -7,7 +7,7 @@ def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
 
 SIGLAS = {"CG", "XRE", "PCX", "CB", "CBX", "SH", "XR", "NX", "XLR", "CRF", "XT", "YBR", "XTZ", "NXR", "YS", "FZ15", "FZ25", "NX4", "T115",
-          "ML", "XL", "XLX", "NC", "CBR", "GSX", "KLX", "VT", "DT", "DL", "GS", "YZ", "WR", "VS", "RD", "XVS", "TVS", "BMW", "XMAX", "WGK"}  # 25/11: "Bmw", "Cbr" pareciam erro
+          "ML", "XL", "XLX", "NC", "CBR", "GSX", "KLX", "VT", "DT", "DL", "GS", "YZ", "WR", "VS", "RD", "XVS", "TVS", "BMW", "XMAX", "WGK", "EN", "AN", "GSR", "XY", "XV"}  # 25/11: "Bmw", "Cbr" pareciam erro
 CARRO = re.compile(r"\b\d{1,2}V\b|\bAUDI\b|\(|FORA DA FROTA|CAMINH|AUTOMOV|UTILIT|N[AÃ]O VEICULAR|SEM APLICA|M[AÁ]QUINAS|[OÔ]NIBUS", re.I)  # carro, caminhão (motor entre parênteses) e afins
 PRIORIDADE = ["CG 160", "CG 150", "CG 125", "Biz 125", "Biz 110i", "Biz 100", "Pop 110i", "Pop 100", "Bros 160", "Bros 150", "Bros 125",
               "Fazer 150", "Factor 150", "Crosser 150", "XRE 300", "XRE 190", "Fazer 250", "Lander 250", "Twister 250", "CB 300", "PCX 150", "NMax 160"]
@@ -216,6 +216,7 @@ def spec_relacao(desc):
 
 def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     """Devolve (nome, spec_curta). Se não reconhecer o tipo da peça, devolve o nome antigo (fallback)."""
+    nome_real = re.sub(r"\bSNAP ?- ?ON\b( \(CAR ?80\))?", "SNAP-ON", nome_real, flags=re.I)  # 'SNAP - ON' quebrava a marca em 'ON'
     partes = [x.strip() for x in nome_real.split(" - ")]
     if len(partes) < 3:
         return fallback, ""
@@ -262,7 +263,7 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     elif tipo.startswith("Lâmpada"):
         extra = _lampada(desc)
     elif tipo.startswith("Pistão"):  # a medida vem no fim do código: PA9825STD, PA9825025 (0,25 mm), PA4101150 (1,50 mm)
-        g = re.search(r"(STD|025|050|075|100|125|150)$", cod.upper())
+        g = re.search(r"(STD|025|050|075|100|125|150)$", re.sub(r"[^A-Z0-9]", "", cod.upper()))  # 'PA90231,00' também
         if g:
             extra = " medida padrão (STD)" if g.group(1) == "STD" else f" sobremedida {g.group(1)[0]},{g.group(1)[1:]} mm"
     if "organica" in nd and not spec:

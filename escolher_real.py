@@ -6,7 +6,8 @@ Depois: python3 importar_real.py escolhidas.csv --max 1300
 
 Regras (25/11/2026, pedido do Luan "chegar a 1000 peças"): só peça com estoque e preço na Real, com moto conhecida na aplicação
 (ou universal de moto), que a Real vende por unidade, de tipo que o site conhece e com margem que fecha. Nada de aplicação inventada.
-Quem já está no site (dados/produtos.csv) continua enquanto tiver estoque."""
+Quem já está no site (dados/produtos.csv) continua enquanto tiver estoque.
+Peça que a Real só vende em caixa ou pacote fica fora, mesmo se já estava no site (ok do Luan em 25/11 15h28)."""
 import csv, collections, re, statistics, sys
 from pathlib import Path
 RAIZ = Path(__file__).resolve().parent
@@ -23,6 +24,9 @@ POP = ["CG 160", "CG 150", "CG 125", "Biz 125", "Biz 110i", "Biz 100", "Pop 110i
        "CB 300", "PCX 150", "PCX 160", "NMax 160", "Tornado 250", "YBR 125", "XTZ 125", "Ténéré 250", "Elite 125", "Lead 110", "Neo 125", "Biz 125i", "CG 125I"]
 MARCAS_BOAS = {"HONDA", "RIFFEL", "COBREQ", "FRAS-LE", "FRASLE", "NGK", "VEDAMOTORS", "WEGA", "LEVORIN", "PIRELLI", "MOBIL", "LUBRAX", "HELIAR", "MOURA",
                "MAGNETRON", "COFAP", "DIAFRAG", "CORTECO", "WGK", "GVS", "NAKATA", "TRW", "PHILIPS", "OSRAM", "HELLA", "INA", "FAG", "SKF", "DID", "TEC", "KMC"}
+# a Real põe "motos" na aplicação, mas é produto de carro: aditivo de radiador, lâmpada H15/H3, silicone de painel, relé duplo de farol,
+# controle de alarme avulso, buzina caracol. Dizer "serve na maioria das motos" seria enganar o cliente.
+FORA_CARRO = {"MDAD001", "RL10010", "H15HELLA", "12336BVB1", "CAR80SILSPRLA", "DNI8135", "11490000PX32", "0986AH0706"}
 atual = {r["sku"] for r in csv.DictReader(open(RAIZ / 'dados/produtos.csv', encoding='utf-8')) if r["categoria"] != "kit"}
 
 rs = list(csv.DictReader(open(src, encoding='utf-8-sig')))
@@ -41,13 +45,15 @@ for r in rs:
         pass
     elif len(nome.split(" - ")) < 3 and r["marca"]:
         nome = f"{nome} - {r['marca']}"
-    if re.search(r"\bEMB\.? ?C/", nome, re.I) and cod not in atual:
+    if re.search(r"\bEMB\.? ?C/", nome, re.I):
         motivo["embalagem com várias unidades"] += 1; continue
+    if cod in FORA_CARRO:
+        motivo["produto de carro (a Real marca moto, mas quase nenhuma usa)"] += 1; continue
     if cod in FORA_SKU:
         motivo["custo fora do normal (lista)"] += 1; continue
     if not serve_em_moto(nome, r["aplicacao"]):
         motivo["sem moto na aplicação"] += 1; continue
-    if (r["qtd_minima"] or "1") not in ("1", "1.0", "") and cod not in atual:
+    if (r["qtd_minima"] or "1") not in ("1", "1.0", ""):
         motivo["a Real só vende em pacote"] += 1; continue
     cat = categoria(nome)
     if not cat:
@@ -57,8 +63,7 @@ for r in rs:
     fams = [f[0] for f in familias(modelos(r["aplicacao"]))]
     pos = min([POP.index(f) for f in fams if f in POP] or [99])
     univ = not fams
-    if pos == 99 and not univ and cod not in atual:
-        motivo["só serve em moto pouco comum"] += 1; continue
+    # moto pouco comum (Falcon, Yes, Intruder...): entra por último, só se couber no alvo
     tipo = " ".join(norm(nome.split(" - ")[0]).split()[:2])
     cand.append(dict(r, nome_ok=nome, cat=cat, pos=pos, univ=univ, tipo=tipo, est=est, custo=custo))
 
@@ -75,7 +80,7 @@ for c in cand:
         bons.append(c)
 
 def nota(c):
-    return (c["codigo"] in atual, -c["pos"] if c["pos"] < 99 else -50, c["marca"].upper().strip() in MARCAS_BOAS, min(c["est"], 200))
+    return (c["codigo"] in atual, -c["pos"] if c["pos"] < 99 else (-50 if c["univ"] else -60), c["marca"].upper().strip() in MARCAS_BOAS, min(c["est"], 200))
 
 bons.sort(key=nota, reverse=True)
 # equilíbrio: no máximo N peças por tipo (as que já estão no site entram sempre)
