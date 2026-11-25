@@ -126,7 +126,11 @@
       ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
     };
     let ultimo = null;
-    $("#send").addEventListener("click", ()=>{ if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{}); });
+    $("#send").addEventListener("click", ()=>{
+      if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{});
+      // conversão do Google Ads (só quando o config tiver ID e label)
+      if(ultimo && C.ads && C.ads.id && C.ads.label && window.gtag) gtag("event","conversion",{send_to:`${C.ads.id}/${C.ads.label}`, value:ultimo.total, currency:"BRL", transaction_id:ultimo.txid});
+    });
     $("#pixcopy").addEventListener("click", async e=>{ const ta=$("#pixcode");
       try{ await navigator.clipboard.writeText(ta.value); e.target.textContent="Copiado ✓"; }catch(_){ ta.select(); e.target.textContent="Selecione e copie"; }
       setTimeout(()=>e.target.textContent="Copiar código Pix",1500); });

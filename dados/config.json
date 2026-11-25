@@ -59,5 +59,7 @@
     "storageBucket": "loja-dias-7163.firebasestorage.app",
     "messagingSenderId": "696872279122",
     "appId": "1:696872279122:web:8d4426f275d38b7758d38b"
-  }
+  },
+  "google_ads_id": "",
+  "google_ads_label": ""
 }

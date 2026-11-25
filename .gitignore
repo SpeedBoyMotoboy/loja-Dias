@@ -2,3 +2,4 @@ dist/
 __pycache__/
 dados/produtos.csv
 dados/revisao.txt
+firestore.rules

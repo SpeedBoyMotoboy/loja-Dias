@@ -122,6 +122,10 @@ def carregar():
 def head(title, desc, path, extra_ld=None, artifact=False):
     canon = f"{URL}/{'' if path == 'index.html' else path}"
     ld = "".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in (extra_ld or []))
+    gid = CFG.get("google_ads_id", "")  # tag do Google Ads: liga sozinha quando o config tiver o ID (ex.: AW-123)
+    if gid and not artifact:
+        ld += (f'<script async src="https://www.googletagmanager.com/gtag/js?id={e(gid)}"></script>'
+               f'<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag("js",new Date());gtag("config","{e(gid)}");</script>')
     meta = (f'<title>{e(title)}</title><meta name="description" content="{e(desc)}">'
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
@@ -362,6 +366,12 @@ def carrinho():
     out = head_.replace("<title>", '<meta name="robots" content="noindex"><title>', 1) + topo() + "<main>" + corpo + "</main>" + rodape()
     (DIST / "carrinho.html").write_text(out, encoding="utf-8")
 
+def admin():
+    corpo = '''<section><div class="wrap prose" style="max-width:760px"><h1>Pedidos da loja</h1><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
+    out = head("Pedidos | Loja Dias", "Tela da loja.", "admin.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
+        + topo() + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
+    (DIST / "admin.html").write_text(out, encoding="utf-8")
+
 def minha_conta():
     corpo = '''<section><div class="wrap prose" style="max-width:640px"><h1>Minha conta</h1>
 <div id="conta" class="panel"><p class="note">Carregando…</p></div>
@@ -392,7 +402,7 @@ def extras(ps):
     urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
-    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
+    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
     itens = "".join(f'''<item><g:id>{xesc(p["sku"])}</g:id><g:title>{xesc(p["nome"])}</g:title><g:description>{xesc(p["descricao"])}</g:description>
 <g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{URL}/{p['fotos'][0]}</g:image_link>" if p["fotos"] else ""}{"".join(f"<g:additional_image_link>{URL}/{f}</g:additional_image_link>" for f in p["fotos"][1:10])}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
 <g:price>{p["preco"]:.2f} BRL</g:price><g:brand>{xesc(p["marca"])}</g:brand><g:mpn>{xesc(p["sku"])}</g:mpn><g:condition>new</g:condition>
@@ -401,6 +411,7 @@ def extras(ps):
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
     pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
+    cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["frete_gratis_acima"] = GRATIS
     if FIREBASE:
         cfg["firebase"] = FIREBASE
@@ -413,7 +424,7 @@ def main():
     (DIST / "assets").mkdir(parents=True)
     if (RAIZ / "img").exists():
         shutil.copytree(RAIZ / "img", DIST / "img")
-    for f in ("style.css", "app.js", "conta.js"):
+    for f in ("style.css", "app.js", "conta.js", "admin.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
     global VITRINE
     ps = carregar()
@@ -424,7 +435,7 @@ def main():
     else:
         catalogo(ps); carrinho()
         if FIREBASE:
-            minha_conta()
+            minha_conta(); admin()
     for p in ps: produto(p)
     for c in CFG["cidades"]: cidade(c, ps)
     extras(ps)
