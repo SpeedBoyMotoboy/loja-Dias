@@ -2,13 +2,13 @@
 // Só é carregado quando dados/config.json tem "firebase". Cada cliente só lê e grava os próprios dados
 // (regras em firestore.rules). Não guarda senha, cartão nem dado de pagamento.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config;
 const app = initializeApp(C.firebase);
-if (C.appcheck) initializeAppCheck(app, { provider: new ReCaptchaV3Provider(C.appcheck), isTokenAutoRefreshEnabled: true });  // bloqueia robôs
+if (C.appcheck) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(C.appcheck), isTokenAutoRefreshEnabled: true });  // bloqueia robôs
 const TERMO = "v1";  // versão da página de privacidade aceita
 const auth = getAuth(app), db = getFirestore(app);
 const $ = s => document.querySelector(s);

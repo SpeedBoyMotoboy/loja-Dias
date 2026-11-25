@@ -1,11 +1,13 @@
 // Loja Dias: tela só do Luan para marcar "Pix recebido". Quem pode: e-mails da loja nas regras do Firestore.
 // Marcar como pago soma 1 em clientes/{uid}.pedidos_pagos (conta o 6º pedido com frete grátis).
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collectionGroup, query, orderBy, limit, getDocs, doc, writeBatch, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config;
 const app = initializeApp(C.firebase);
+if (C.appcheck) initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(C.appcheck), isTokenAutoRefreshEnabled: true });
 const auth = getAuth(app), db = getFirestore(app);
 const box = document.querySelector("#admin");
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
