@@ -73,6 +73,20 @@ def modelos(apl):
             out.append(m)
     return out
 
+def carregar_tetos():
+    """dados/teto.csv: preço médio da concorrência (Mesa). Preço da loja não passa disso."""
+    f = RAIZ / "dados/teto.csv"
+    if not f.exists():
+        return []
+    return [(t["palavras"].split("|"), [m for m in t["modelos"].split("|") if m], float(t["medio"])) for t in csv.DictReader(open(f, encoding="utf-8"))]
+
+def teto_de(nome, apl, tetos):
+    n, a = norm(nome), norm(nome + " " + apl)
+    for pals, mods, medio in tetos:
+        if any(p in n for p in pals) and (not mods or any(m in a for m in mods)):
+            return medio
+    return None
+
 def categoria(txt):
     t = norm(txt) + " "
     for c, ws in CATS:
@@ -83,7 +97,8 @@ def categoria(txt):
 def main():
     src = Path(sys.argv[1])
     mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 100
-    saida, vistos = [], set()
+    saida, vistos, revisao = [], set(), []
+    tetos = carregar_tetos()
     for r in csv.DictReader(open(src, encoding="utf-8-sig")):
         sku = col(r, "codigo", "sku", "cod")
         nome = col(r, "nome", "descricao", "produto")
@@ -98,8 +113,11 @@ def main():
         cat = categoria(nome + " " + col(r, "categoria"))
         if not cat:
             continue
-        pv = preco_de_custo(custo, cat, nome)
+        teto = teto_de(nome, col(r, "aplicacao"), tetos)
+        pv = preco_de_custo(custo, cat, nome, teto / 1.10 if teto else None)  # build usa ml_medio*1.10; aqui o teto é o médio
         if pv is None:
+            if teto:
+                revisao.append(f"{sku};{nome};custo {custo:.2f};teto {teto:.2f}")
             continue
         veic = col(r, "aplicacao", "veiculos", "aplicacao/veiculos")
         cr = norm(col(r, "categoria"))
@@ -109,7 +127,7 @@ def main():
         vistos.add(sku)
         saida.append({"sku": sku, "nome": nome[:90], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
                       "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",
-                      "preco": "", "custo": f"{custo:.2f}", "estoque": 10 if not est or not est.isdigit() else est,
+                      "preco": "", "custo": f"{custo:.2f}", "ml_medio": f"{teto / 1.10:.2f}" if teto else "", "estoque": 10 if not est or not est.isdigit() else est,
                       "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
         if len(saida) >= mx:
             break
@@ -130,12 +148,15 @@ def main():
                      "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "", "partes": ";".join(partes),
                      "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
     saida = kits + saida
-    campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "estoque", "imagem", "descricao", "partes"]
+    campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "ml_medio", "estoque", "imagem", "descricao", "partes"]
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=campos)
         w.writeheader()
         w.writerows(saida)
     print(f"{len(saida)} peças importadas para dados/produtos.csv")
+    (RAIZ / "dados/revisao.txt").write_text("\n".join(revisao) + ("\n" if revisao else ""), encoding="utf-8")
+    if revisao:
+        print(f"{len(revisao)} peças acima do preço médio da concorrência: ver dados/revisao.txt")
 
 if __name__ == "__main__":
     main()
