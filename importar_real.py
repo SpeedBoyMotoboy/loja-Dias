@@ -150,18 +150,37 @@ def modelos(apl):
     return out
 
 def carregar_tetos():
-    """dados/teto.csv: preço médio da concorrência (Mesa). Preço da loja não passa disso."""
+    """dados/teto.csv: preço médio da concorrência (Mesa). Coluna marca = média daquela marca/linha; vazia = média geral."""
     f = RAIZ / "dados/teto.csv"
     if not f.exists():
         return []
-    return [(t["palavras"].split("|"), [m for m in t["modelos"].split("|") if m], float(t["medio"])) for t in csv.DictReader(open(f, encoding="utf-8"))]
+    return [(t["palavras"].split("|"), [m for m in t["modelos"].split("|") if m], norm(t.get("marca") or "").strip(), float(t["medio"]))
+            for t in csv.DictReader(open(f, encoding="utf-8"))]
 
-def teto_de(nome, apl, tetos):
-    n, a = norm(nome), norm(nome + " " + apl)
-    for pals, mods, medio in tetos:
-        if any(p in n for p in pals) and (not mods or any(m in a for m in mods)):
-            return medio
-    return None
+# Mesa 25/11/2026 (Pauta 3): o teto compara com a MESMA marca/linha, e vale média + R$ 10 (build.TETO_FOLGA).
+# A média geral não serve para linha própria (iridium, titanium, com retentor, cerâmica): era ela que derrubava NGK e Riffel.
+LINHA_PROPRIA = re.compile(r"iridium|titanium|c/ ?ret\b|com retentor|o.?ring|ceramica|premium|sinteriz")
+
+def teto_de(nome, apl, tetos, marca=""):
+    """Devolve a média de referência (sem os R$ 10) ou None. Linha do teto.csv com marca ganha da média geral."""
+    n, a, m = norm(nome), norm(nome + " " + apl), norm(marca)
+    geral = None
+    for pals, mods, mk, medio in tetos:
+        # a palavra tem de abrir o nome ("vela" não pega "cachimbo vela"); medida/viscosidade (tem número) vale em qualquer lugar
+        if any(n.startswith(p) or (re.search(r"\d", p) and p in n) for p in pals) and (not mods or any(x in a for x in mods)):
+            if mk:
+                if any(x and (x in m or x in n) for x in mk.split("|")):
+                    return medio
+            elif geral is None:
+                geral = medio
+    return None if LINHA_PROPRIA.search(n) else geral
+
+# Mesa 25/11/2026: estoque mínimo na Real para a peça entrar (ou voltar) no site.
+# Curva A (relação, pastilha, lona, bateria, câmara) gira rápido e a Real repõe: 5. O resto: 10.
+CURVA_A = re.compile(r"(kit transmissao|kit relacao|pastilha|lona|sapata|patim|bateria|camara)\b")
+def estoque_min(nome):
+    n = norm(nome)
+    return 5 if CURVA_A.match(n) and "primaria" not in n else 10  # kit de transmissão primária (CVT de scooter) não é relação
 
 FORA_NOME = ["bateria 3v", "cr2032"]  # pilha de controle de alarme, não é peça de moto
 # custo na Real muito acima do normal para o tipo de peça (parece caixa fechada ou erro de cadastro): não entra até alguém conferir
@@ -250,11 +269,11 @@ def main():
         cat = categoria(nome + " " + col(r, "categoria"))
         if not cat:
             continue
-        teto = teto_de(nome, col(r, "aplicacao"), tetos)
-        pv = preco_de_custo(custo, cat, nome, teto / 1.10 if teto else None)  # build usa ml_medio*1.10; aqui o teto é o médio
+        teto = teto_de(nome, col(r, "aplicacao"), tetos, marca_r)
+        pv = preco_de_custo(custo, cat, nome, teto)  # ml_medio = média da mesma marca/linha; o build soma a folga
         if pv is None:
             if teto:
-                revisao.append(f"{sku};{nome};custo {custo:.2f};teto {teto:.2f}")
+                revisao.append(f"{sku};{nome};custo {custo:.2f};média da marca/linha {teto:.2f}")
             continue
         veic = col(r, "aplicacao", "veiculos", "aplicacao/veiculos")
         cr = norm(col(r, "categoria"))
@@ -264,7 +283,7 @@ def main():
         vistos.add(sku)
         saida.append({"sku": sku, "nome": nome[:120], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
                       "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",
-                      "preco": "", "custo": f"{custo:.2f}", "ml_medio": f"{teto / 1.10:.2f}" if teto else "", "estoque": 10 if not est or not est.isdigit() else est,
+                      "preco": "", "custo": f"{custo:.2f}", "ml_medio": f"{teto:.2f}" if teto else "", "estoque": 10 if not est or not est.isdigit() else est,
                       "imagem": "", "descricao": f"{nome}. Entrega por motoboy no mesmo dia na Grande Vitória."})
         if len(saida) >= mx:
             break
