@@ -152,7 +152,7 @@
       // Mesa 25/11: peça cara (giro lento) só com Pix antecipado
       const caro = C.antecipado && items.some(i=>i.p.preco>=C.antecipado), rEnt = $('input[name="pay"][value="entrega"]');
       if(rEnt){ rEnt.disabled = !!caro; if(caro && rEnt.checked){ rEnt.checked = false; const rAg = $('input[name="pay"][value="agora"]'); if(rAg) rAg.checked = true; }
-        const pe = $("#payentrega"); if(pe) pe.textContent = caro ? `Não vale para peça de ${brl(C.antecipado)} ou mais: ela é separada só para você, então o Pix é antes.` : "Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja."; }
+        const pe = $("#payentrega"); if(pe) pe.textContent = caro ? `Não vale para peça de ${brl(C.antecipado)} ou mais: ela é separada só para você, então o Pix é antes.` : (C.entrega_limite ? `Até ${brl(C.entrega_limite)} você paga tudo quando o motoboy chegar. Acima disso, paga ${brl(C.entrega_sinal)} de sinal no Pix agora e o resto na entrega. Às 11h45 a loja confirma seu endereço no WhatsApp.` : "Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja."); }
       const payEl = $('input[name="pay"]:checked'), naEntrega = !!(payEl && payEl.value==="entrega");
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
@@ -217,12 +217,15 @@
       }
       $("#err").hidden = !err; $("#err").textContent = err;
       const send = $("#send"); send.setAttribute("aria-disabled", !!err);
-      $("#pixbox").hidden = !!err || t.naEntrega;
-      send.textContent = t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
+      // trava do Pix na entrega (Luan, 25/11): acima do limite, sinal no Pix agora e o resto na entrega
+      const sinal = t.naEntrega && C.entrega_limite && C.entrega_sinal && t.total > C.entrega_limite ? Math.min(C.entrega_sinal, t.total) : 0;
+      $("#pixbox").hidden = !!err || (t.naEntrega && !sinal);
+      const pn = $("#pixnota"); if(pn) pn.textContent = sinal ? `Pague agora só o sinal de ${brl(sinal)}. O resto, ${brl(t.total-sinal)}, você paga no Pix quando o motoboy chegar. Depois envie o pedido com o comprovante.` : "Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.";
+      send.textContent = sinal ? "Enviar pedido e comprovante do sinal no WhatsApp" : t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
       if(err){ send.href = "#"; return; }
       const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8) + Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3).padEnd(3,"0");
       const tel = $("#tel") ? $("#tel").value.trim().slice(0,20) : "";
-      $("#pixcode").value = pixCode(t.total, txid);
+      $("#pixcode").value = pixCode(sinal || t.total, txid);
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`, tel?`WhatsApp: ${tel}`:null,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
@@ -230,7 +233,7 @@
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         nf?`*Nota fiscal (NF-e)*: CNPJ ${nfCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5")} · ${nfRazao} · ${nfMail}`:null,
-        t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
+        sinal ? `Pagamento: sinal de ${brl(sinal)} no Pix agora (comprovante anexo) + ${brl(t.total-sinal)} no Pix na entrega` : t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
       ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco})),
         sub:t.sub, frete:t.frete||0, desconto:Math.round(((t.desc||0)+(t.descInd||0))*100)/100,

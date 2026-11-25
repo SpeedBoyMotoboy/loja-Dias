@@ -399,7 +399,7 @@ FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam até as {CFG['entrega_ate']} do mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
  ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
- ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix quando o motoboy chegar. Na entrega, o motoboy só entrega a peça depois que o Pix cai na conta da loja. Leva menos de um minuto." if NA_ENTREGA else "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido.")),
+ ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix quando o motoboy chegar. Na entrega, o motoboy só entrega a peça depois que o Pix cai na conta da loja. Leva menos de um minuto. Pedido acima de R$ 150 paga um sinal de R$ 15 no Pix na hora do pedido, e o resto na entrega. Peça de R$ 250 ou mais é paga no Pix antes." if NA_ENTREGA else "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido.")),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
  ("A peça tem garantia?", "Sim. Toda peça é nova e tem garantia de 90 dias contra defeito de fabricação."),
  ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
@@ -769,7 +769,9 @@ def entrega():
 <p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam até as {CFG["entrega_ate"]} do mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
 {tabela_frete()}
 {('<h2 style="margin-top:28px">Pagamento</h2><p>Só Pix. Você paga na hora do pedido, com o Pix copia e cola do valor exato, ou quando o motoboy chegar.</p>'
- '<p><b>Pagando na entrega:</b> o motoboy chega, você faz o Pix para a loja e ele entrega a peça assim que o Pix aparecer na conta da loja. Print de comprovante não vale, a confirmação é no banco da loja. Leva menos de um minuto. Não aceitamos dinheiro nem cartão.</p>') if NA_ENTREGA else '<h2 style="margin-top:28px">Pagamento</h2><p>Só Pix, com o Pix copia e cola do valor exato do pedido.</p>'}
+ '<p><b>Pagando na entrega:</b> o motoboy chega, você faz o Pix para a loja e ele entrega a peça assim que o Pix aparecer na conta da loja. Print de comprovante não vale, a confirmação é no banco da loja. Leva menos de um minuto. Não aceitamos dinheiro nem cartão.</p>'
+ '<p>Pedido de até R$ 150 você paga todo na entrega. Acima de R$ 150, você paga um sinal de R$ 15 no Pix na hora do pedido, que a loja usa para separar a sua peça, e o resto na entrega. Peça de R$ 250 ou mais é paga no Pix antes da entrega.</p>'
+ '<p>Às 11h45 a loja confirma seu endereço pelo WhatsApp antes de separar os pedidos do dia.</p>') if NA_ENTREGA else '<h2 style="margin-top:28px">Pagamento</h2><p>Só Pix, com o Pix copia e cola do valor exato do pedido.</p>'}
 <h2 style="margin-top:28px">Peças grandes</h2><p>Peças que não cabem no baú da moto, como escapamento, para-choque e par de amortecedores, são combinadas pelo WhatsApp para retirada ou frete de carro.</p></div></section>'''
     pagina("entrega.html", "Entrega e fretes na Grande Vitória | Loja Dias Peças",
            "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.", corpo)
@@ -794,7 +796,7 @@ def carrinho():
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
 '<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small id="payentrega">Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
 <p class="err" id="err" hidden></p>
-<div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
+<div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note" id="pixnota">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
 <a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
 <p class="note">O pedido abre pronto no WhatsApp da loja. A gente confirma a peça e o horário de entrega na hora.</p>
 {confianca()}</div></div>'''
@@ -890,6 +892,7 @@ def extras(ps):
     cfg["frete_gratis_acima"] = GRATIS
     cfg["na_entrega"] = NA_ENTREGA
     cfg["antecipado"] = ANTECIPADO if ANTECIPADO < 10**9 else 0
+    cfg["entrega_limite"] = CFG.get("entrega_limite", 0); cfg["entrega_sinal"] = CFG.get("entrega_sinal", 0)
     cfg["site"] = URL
     if IND:
         cfg["ind"] = {"desconto": IND["desconto"], "comissao": IND["comissao"], "dias": IND.get("dias", 30)}

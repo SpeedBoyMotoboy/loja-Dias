@@ -76,5 +76,8 @@
     "_obs": "Programa de indicação (25/11). Quem compra pelo link ganha 'desconto' e o indicador ganha 'comissao' (fração do preço) só nas peças em que sobra lucro_min depois dos dois. Para desligar: ligada=false."
   },
   "pix_antecipado_acima": 250,
-  "_obs_pix_antecipado": "Mesa Loja 25/11 (ata em claude/atas-mesa-loja.md): peças de R$ 250 ou mais só com Pix antecipado (sem Pix na entrega). Kits de R$ 55 ou mais mostram frete grátis no lugar de 'economize'."
+  "_obs_pix_antecipado": "Mesa Loja 25/11 (ata em claude/atas-mesa-loja.md): peças de R$ 250 ou mais só com Pix antecipado (sem Pix na entrega). Kits de R$ 55 ou mais mostram frete grátis no lugar de 'economize'.",
+  "entrega_limite": 150,
+  "entrega_sinal": 15,
+  "_obs_trava_entrega": "Luan escolheu 'Sim, com trava' (Mesa 25/11 23h52 UTC): Pix na entrega até R$ 150; acima, sinal de R$ 15 no Pix na hora do pedido e o resto na entrega; loja confirma endereço pelo WhatsApp às 11h45."
 }
