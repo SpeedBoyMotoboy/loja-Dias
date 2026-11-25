@@ -10,6 +10,7 @@ import csv, json, re, shutil, unicodedata, html
 from datetime import date
 from pathlib import Path
 from xml.sax.saxutils import escape as xesc
+from nomes import nome_por_moto, familias, veiculo_legivel
 
 RAIZ = Path(__file__).resolve().parent
 DIST = RAIZ / "dist"
@@ -22,6 +23,8 @@ VITRINE = False  # definido em main(): sem peças reais, o site vira vitrine com
 FRETE_OK = CFG.get("fretes_confirmados", False)
 GRATIS = CFG.get("frete_gratis_acima") or 0
 FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
+NA_ENTREGA = CFG.get("pagar_na_entrega", False)  # Pix ao motoboy na entrega; só liga com ok do Luan
+GARANTIA = "Garantia de 90 dias contra defeito de fabricação"  # garantia legal (CDC, art. 26)
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
@@ -138,6 +141,14 @@ def carregar():
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
         p["nome_real"], p["nome"] = p["nome"], nome_vitrine(p["nome"], p["categoria"])  # slug/URL continuam do nome original
+        # Pesquisa 25/11: as grandes lojas dão à peça o nome da moto e do ano; o código técnico vira detalhe.
+        p["nome"], p["spec"] = nome_por_moto(p["nome_real"], p["categoria"], veic, p["nome"])
+        p["fams"] = [f[0] for f in familias(veic)]
+        if p["marca"].isupper() and len(p["marca"]) > 3:
+            p["marca"] = p["marca"].title()
+        p["universal"] = not p["fams"] and any("universal" in v.lower() for v in veic)
+        if p["categoria"] != "kit":  # a descrição da distribuidora é só o nome em maiúsculas; no site vai frase que o cliente entende
+            p["descricao"] = f'{p["nome"]}. {(p["spec"] + ". ") if p["spec"] else ""}Peça nova, marca {p["marca"]}, código {p["sku"]}. Entrega por motoboy no mesmo dia na Grande Vitória.'
         ps.append(p)
     return ps
 
@@ -175,11 +186,25 @@ ATALHOS = [("Kits prontos", "catalogo.html?cat=kit"), ("Freio dianteiro", "catal
            ("Cabos", "catalogo.html?cat=cabo"), ("Retrovisor e manete", "catalogo.html?cat=acessorio")]
 MOTOS_BARRA = ["CG 160", "CG 150", "CG 125", "Biz", "Pop", "Bros", "Fazer", "XRE", "Factor", "PCX"]
 
+# Página por moto: (nome na tela, endereço, famílias do catálogo que entram nela, marca)
+MOTOS = [("CG 160", "pecas-cg-160", ["CG 160"], "Honda"), ("CG 150", "pecas-cg-150", ["CG 150"], "Honda"), ("CG 125", "pecas-cg-125", ["CG 125"], "Honda"),
+         ("Biz", "pecas-biz", ["Biz 125", "Biz 110i", "Biz 100"], "Honda"), ("Pop", "pecas-pop", ["Pop 100", "Pop 110i"], "Honda"),
+         ("Bros 160", "pecas-bros-160", ["Bros 160"], "Honda"), ("Bros 150", "pecas-bros-150", ["Bros 150", "Bros 125"], "Honda"),
+         ("Fazer 150", "pecas-fazer-150", ["Fazer 150", "Fazer FZ15"], "Yamaha"), ("Factor", "pecas-factor", ["Factor 150", "Factor 125"], "Yamaha"),
+         ("Crosser 150", "pecas-crosser-150", ["Crosser 150"], "Yamaha"), ("XRE 300", "pecas-xre-300", ["XRE 300"], "Honda"),
+         ("XRE 190", "pecas-xre-190", ["XRE 190"], "Honda"), ("Fazer 250", "pecas-fazer-250", ["Fazer 250"], "Yamaha"),
+         ("Lander e Ténéré 250", "pecas-lander-tenere-250", ["Lander 250", "Ténéré 250"], "Yamaha"),
+         ("Twister e CB 300", "pecas-twister-cb-300", ["Twister 250", "Twister 300", "CB 300"], "Honda"), ("PCX 150", "pecas-pcx-150", ["PCX 150"], "Honda")]
+MOTOS_ATIVAS = []  # preenchido em main(): só moto com 3 peças próprias ou mais ganha página
+
+def pecas_da_moto(ps, fams):
+    return [p for p in ps if set(p.get("fams", [])) & set(fams)]
+
 def catbar():
     if VITRINE:
         return ""
     a = "".join(f'<a href="{u}">{e(t)}</a>' for t, u in ATALHOS)
-    m = "".join(f'<a class="moto" href="catalogo.html?q={quote(n)}">{e(n)}</a>' for n in MOTOS_BARRA)
+    m = "".join(f'<a class="moto" href="{sl}.html">{e(n)}</a>' for n, sl, _, _ in MOTOS_ATIVAS) or "".join(f'<a class="moto" href="catalogo.html?q={quote(n)}">{e(n)}</a>' for n in MOTOS_BARRA)
     return (f'<nav class="catbar" aria-label="Categorias e motos"><div class="wrap">'
             f'<div class="rail">{a}</div><div class="rail motos"><span class="lbl2">Sua moto</span>{m}</div></div></nav>')
 
@@ -195,7 +220,8 @@ def rodape(artifact=False):
 <div><b>Entregamos em</b>{cid}</div>
 <div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a></div>
 </div></footer>
-<a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
+<a class="wafloat" href="{wa}" target="_blank" rel="noopener" aria-label="Falar com a loja no WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.200 8.200 0 0 1-4.200-1.150l-.300-.180-3 .790.800-2.900-.200-.300A8.200 8.200 0 1 1 12 20.200zm4.500-6.100c-.250-.120-1.460-.720-1.690-.800-.230-.080-.390-.120-.560.120-.160.250-.640.800-.780.970-.140.160-.290.180-.530.060-.250-.120-1.040-.380-1.980-1.220-.730-.650-1.230-1.460-1.370-1.700-.140-.250-.020-.380.110-.500.110-.110.250-.290.370-.430.120-.140.160-.250.250-.410.080-.160.040-.310-.020-.430-.060-.120-.560-1.340-.760-1.840-.200-.480-.410-.420-.560-.420h-.480c-.160 0-.430.060-.660.310-.230.250-.860.840-.860 2.050 0 1.210.880 2.380 1 2.540.120.160 1.740 2.650 4.200 3.720.590.250 1.050.400 1.400.520.590.190 1.130.160 1.550.100.470-.070 1.460-.600 1.670-1.170.200-.580.200-1.070.140-1.170-.060-.110-.220-.170-.470-.290z"/></svg><span>WhatsApp</span></a>
+<div class="buybar" id="buybar" hidden></div>
 <script src="assets/loja.js"></script><script src="assets/app.js"></script>{'<script type="module" src="assets/conta.js"></script>' if FIREBASE and not VITRINE else ""}{tail}'''
 
 def selo(p):
@@ -205,13 +231,14 @@ def selo(p):
 
 def card(p):
     img = f'<img src="{p["fotos"][0]}" alt="{e(p["nome"])}" loading="lazy">' if p["fotos"] else icon(p["categoria"])
-    fit = ", ".join(p["modelos"][:3]) + ("…" if len(p["modelos"]) > 3 else "")
     low = p["estoque"] <= 3
-    return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1"><span class="tag">{"" if SO_MOTO else TIPOS[p["tipo"]] + " · "}{CATS[p["categoria"]]}</span>{img}</a>
-<div class="body"><h3><a href="{p["url"]}">{e(p["nome"])}</a></h3><div class="fit">Serve: {e(fit)}</div>
-{"" if p["categoria"] == "kit" else f'<div class="sku">{e(p["marca"])} · cód. {e(p["sku"])}</div>'}<div class="stock{' low' if low else ''}">{'Últimas %d unidades' % p['estoque'] if low else 'Em estoque'}</div>
-{selo(p)}<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
-<button class="add" type="button" data-add="{e(p["sku"])}">Adicionar</button></div></div></article>'''
+    # O nome já diz a moto. Embaixo vai só o que ajuda a escolher: medida da relação ou "serve em qualquer moto".
+    sub = p.get("spec") or ("Serve em qualquer moto" if p.get("universal") else "")
+    return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1">{img}</a>
+<div class="body"><h3><a href="{p["url"]}">{e(p["nome"])}</a></h3>{f'<div class="fit">{e(sub)}</div>' if sub else ""}
+{f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if low else ""}
+<div class="row"><div class="price">{brl(p["preco"])}<small>no Pix</small></div>
+<button class="add" type="button" data-add="{e(p["sku"])}" aria-label="Adicionar {e(p["nome"])} ao carrinho">Adicionar</button></div></div></article>'''
 
 def tabela_frete():
     if not FRETE_OK:
@@ -224,8 +251,9 @@ FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam até as {CFG['entrega_ate']} do mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
  ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
- ("Quais formas de pagamento?", "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido."),
+ ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix ao motoboy quando a peça chegar." if NA_ENTREGA else "Por enquanto só Pix. Você recebe o Pix copia e cola com o valor exato do pedido.")),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
+ ("A peça tem garantia?", "Sim. Toda peça é nova e tem garantia de 90 dias contra defeito de fabricação."),
  ("Não achei minha peça. E agora?", "Trabalhamos com grandes distribuidoras do ES. Chame no WhatsApp com o modelo do veículo e a peça que você precisa."),
 ]
 
@@ -243,8 +271,13 @@ def pagina(path, title, desc, corpo, ld=None, artifact=False):
     out = head(title, desc, path, ld, artifact) + topo() + "<main>" + corpo + "</main>" + rodape(artifact)
     (DIST / path).write_text(out, encoding="utf-8")
 
+def mais_barata(ps, cat, termo=""):
+    xs = [p for p in ps if p["categoria"] == cat and termo in p["nome"].lower()]
+    return min(xs, key=lambda p: p["preco"]) if xs else None
+
 def black_friday(ps, destaque):
-    """Faixa Black Friday: só desconto real (kit sai mais barato que as peças separadas). Banner do Google Flow é opcional."""
+    """Faixa Black Friday. Nada de desconto inventado: mostra preço real das peças que mais saem e a entrega no mesmo dia.
+    (25/11: saiu a linha 'economiza R$ 2,90' dos kits; perto dos -40% das lojas grandes ela enfraquecia a faixa.)"""
     if not CFG.get("black_friday"):
         return ""
     kits = [p for p in ps if p["categoria"] == "kit"]
@@ -253,18 +286,16 @@ def black_friday(ps, destaque):
     for p in ps:
         if p["categoria"] != "kit" and p["sku"] not in ja and p["fotos"] and p["categoria"] not in usadas and len(extra) < 8 - len(kits):
             extra.append(p); usadas.add(p["categoria"])
-    def kcard(p):
-        m = re.search(r"separado \(R\$ ([\d.]+)\)", p["descricao"])
-        c = card(p)
-        if m and float(m.group(1)) > p["preco"]:
-            sep = float(m.group(1))
-            c = c.replace('<div class="row">', f'<div class="save">Separado sai {brl(sep)}. No kit você economiza {brl(sep - p["preco"])}.</div><div class="row">', 1)
-        return c
+    rel = next((p for p in ps if p["categoria"] == "transmissao" and "CG 160" in p.get("fams", [])), None)
+    past = mais_barata(ps, "freio", "pastilha")
+    fatos = []
+    if rel: fatos.append(f"Kit relação da CG 160 por {brl(rel['preco'])}")
+    if past: fatos.append(f"pastilha de freio a partir de {brl(past['preco'])}")
     banner = (f'<img class="bfimg" src="img/banner-black-friday.webp" alt="" width="1920" height="480">'
               if (RAIZ / "img/banner-black-friday.webp").exists() else "")
     return f'''<section class="bf" aria-labelledby="bft"><div class="wrap">{banner}
-<div class="bfhead"><h2 id="bft">Black Friday</h2><p>Kits prontos mais baratos que comprar as peças separadas. Frete grátis acima de {brl(GRATIS)} e entrega até as {CFG["entrega_ate"]} para pedido até {CFG["corte_mesmo_dia"]}.</p></div>
-<div class="grid">{"".join(kcard(p) for p in kits)}{"".join(card(p) for p in extra)}</div>
+<div class="bfhead"><h2 id="bft">Black Friday</h2><p>Sem preço inflado para fingir desconto. {", ".join(fatos) + ". " if fatos else ""}Frete grátis acima de {brl(GRATIS)} e entrega hoje para pedido até {CFG["corte_mesmo_dia"]}.</p></div>
+<div class="grid">{"".join(card(p) for p in kits)}{"".join(card(p) for p in extra)}</div>
 <p><a class="btn" href="catalogo.html?cat=kit">Ver todos os kits</a></p></div></section>'''
 
 PORTAS = '''<section><div class="wrap split">
@@ -275,23 +306,35 @@ PORTAS = '''<section><div class="wrap split">
 def home(ps, artifact=False):
     if VITRINE:
         return home_vitrine(artifact)
-    destaque = [p for p in ps if p["tipo"] == "moto" and not (CFG.get("black_friday") and p["categoria"] == "kit")][:8] if SO_MOTO else [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
+    if SO_MOTO:  # uma peça de cada tipo, na ordem do giro; antes eram 8 kits de relação seguidos
+        destaque, vistos = [], set()
+        for cat in ("transmissao", "freio", "filtro", "ignicao", "eletrica", "cabo", "pneu", "acessorio"):
+            x = next((p for p in ps if p["categoria"] == cat and p["fotos"]), None)
+            if x: destaque.append(x); vistos.add(x["sku"])
+        for p in ps:  # completa com a segunda mais vendida de relação e freio
+            if len(destaque) >= 8: break
+            if p["sku"] not in vistos and p["categoria"] in ("transmissao", "freio") and p["fotos"]:
+                destaque.append(p); vistos.add(p["sku"])
+    else:
+        destaque = [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
+    motos_tiles = "".join(f'<a href="{sl}.html"><b>{e(n)}</b><span>{len(pecas_da_moto(ps, fams))} peças</span></a>' for n, sl, fams, _ in MOTOS_ATIVAS)
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     corpo = f'''<div class="hero"><div class="wrap">
 <span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
 <h1>Peça de moto e carro na sua porta, hoje</h1>
-<p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
+<p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. {"Pague no Pix, agora ou na entrega." if NA_ENTREGA else "Pagamento no Pix."}</p>
 <form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de ar Bros" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
-<div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
+<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span><span class="chip"><i></i>Troca em 7 dias</span><span class="chip"><i></i>Garantia de 90 dias</span></div>
 </div></div>
 {"" if SO_MOTO else PORTAS}
 {black_friday(ps, destaque)}
 <section style="padding-top:0"><div class="wrap"><h2>Mais procuradas</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
 <p><a class="btn dark" href="catalogo.html">Ver todas as peças</a></p></div></section>
-<section><div class="wrap split"><div><h2>Moto</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>
+{f'<section><div class="wrap"><h2>Peças para a sua moto</h2><div class="mototiles">{motos_tiles}</div></div></section>' if motos_tiles else ""}
+<section><div class="wrap split"><div><h2>Por tipo de peça</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Escolha a peça</b><span>Busque pelo nome ou pelo modelo do seu veículo. Na dúvida, mande foto no WhatsApp.</span></li>
-<li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. Pague no Pix copia e cola.</span></li>
+<li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. {"Pague no Pix agora ou ao motoboy, na entrega." if NA_ENTREGA else "Pague no Pix copia e cola."}</span></li>
 <li><b>Receba com o motoboy</b><span>Pedido até {CFG["corte_mesmo_dia"]}: entrega até as {CFG["entrega_ate"]} do mesmo dia. Acompanhe pelo WhatsApp.</span></li></ol></div></section>
 <section><div class="wrap"><h2>Frete por cidade</h2>{tabela_frete()}</div></section>
 <section id="duvidas"><div class="wrap faq prose"><h2>Dúvidas</h2>{faq_html()}</div></section>'''
@@ -314,27 +357,77 @@ def catalogo(ps):
     pagina("catalogo.html", "Catálogo de peças de moto e carro | Loja Dias Peças",
            "Todas as peças de moto e carro da Loja Dias com preço, compatibilidade e entrega por motoboy na Grande Vitória.", corpo)
 
-def produto(p):
-    pix = p["preco"] * (1 - CFG["desconto_pix"])
+def confianca():
+    """O que loja nova precisa mostrar perto do botão: quem entrega, o que acontece se não servir, garantia e CNPJ."""
+    itens = [f"Entrega pelo motoboy da loja. Pedido até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']}"]
+    if NA_ENTREGA:
+        itens.append("Pague no Pix só quando a peça chegar, se preferir")
+    itens += ["Não serviu? O motoboy busca e troca em até 7 dias", GARANTIA,
+              f"Loja de {CFG['cidade_base']}, CNPJ {CFG.get('cnpj','')}"]
+    return '<ul class="trust">' + "".join(f"<li>{e(t)}</li>" for t in itens) + "</ul>"
+
+def leve_junto(p, ps):
+    """Peças baratas que servem na mesma moto (ou em qualquer uma), de outras categorias: ajudam a fechar o frete grátis."""
+    if p["categoria"] == "kit":
+        return []
+    fams = set(p.get("fams", []))
+    cand = [x for x in ps if x["sku"] != p["sku"] and x["categoria"] not in (p["categoria"], "kit") and x["fotos"]
+            and ((fams and set(x.get("fams", [])) & fams) or (x.get("universal") and x["categoria"] in ("pneu", "freio", "eletrica") and x["preco"] < 60))]
+    ordem = ["freio", "filtro", "ignicao", "transmissao", "pneu", "eletrica", "cabo", "acessorio"]  # o que mais se troca vem primeiro
+    cand.sort(key=lambda x: (not (set(x.get("fams", [])) & fams), x["preco"] > 60, ordem.index(x["categoria"]) if x["categoria"] in ordem else 9))
+    out, usadas = [], set()
+    for x in cand:
+        if x["categoria"] not in usadas:
+            out.append(x); usadas.add(x["categoria"])
+        if len(out) == 4:
+            break
+    return out
+
+def ficha(p):
+    """Medidas legíveis. Hoje só o kit relação traz medida no nome da distribuidora."""
+    from nomes import spec_relacao
+    if p["categoria"] != "transmissao":
+        return ""
+    sp = spec_relacao(p["nome_real"].split(" - ")[0])
+    if not sp:
+        return ""
+    return (f'<dt>Coroa</dt><dd>{sp["coroa"]} dentes</dd><dt>Pinhão</dt><dd>{sp["pinhao"]} dentes</dd>'
+            f'<dt>Corrente</dt><dd>{sp["corrente"]}, {sp["elos"]} elos{", com retentor (O-ring)" if sp["retentor"] else ", sem retentor"}</dd>')
+
+def produto(p, ps=()):
     img = f'<img id="fotomain" src="{p["fotos"][0]}" alt="{e(p["nome"])}">' if p["fotos"] else icon(p["categoria"])
     thumbs = "".join(f'<button type="button" class="thumb" data-foto="{f}" aria-label="Foto {i+1}"><img src="{f}" alt="" loading="lazy"></button>' for i, f in enumerate(p["fotos"])) if len(p["fotos"]) > 1 else ""
     opts = "".join(f'<option value="{c["slug"]}">{e(c["nome"])}</option>' for c in CFG["cidades"])
-    veic = "".join(f"<li>{e(v)}</li>" for v in p["veiculos"])
-    wa = f'https://wa.me/{CFG["whatsapp"]}?text=' + re.sub(r" ", "%20", xesc(f"Olá! Essa peça serve no meu veículo? {p['nome']} ({p['sku']})"))
+    veic = "".join(f"<li>{e(veiculo_legivel(v))}</li>" for v in p["veiculos"])
+    zap = lambda t: f'https://wa.me/{CFG["whatsapp"]}?text=' + quote(t)
+    wa_compra = zap(f"Olá! Quero comprar: {p['nome']} (cód. {p['sku']}) por {brl(p['preco'])}. Minha moto é: ")
+    wa_serve = zap(f"Olá! Essa peça serve na minha moto? {p['nome']} (cód. {p['sku']}). Minha moto é: ")
+    junto = leve_junto(p, ps)
+    falta = GRATIS - p["preco"] if GRATIS and p["preco"] < GRATIS else 0
+    junto_html = (f'<section class="junto"><h2>Leve junto</h2><p class="note">{("Faltam " + brl(falta) + " para o frete grátis. ") if falta else ""}Servem na mesma moto e vão na mesma entrega.</p><div class="grid">{"".join(card(x) for x in junto)}</div></section>' if junto else "")
+    motos_links = "".join(f'<a href="{sl}.html">Todas as peças para {e(n)}</a>' for n, sl, fams, _ in MOTOS_ATIVAS if set(fams) & set(p.get("fams", [])))
+    desc = p["descricao"]
     corpo = f'''<div class="wrap"><nav class="crumbs" aria-label="Caminho"><a href="index.html">Início</a> › <a href="catalogo.html?tipo={p["tipo"]}">Peças de {TIPOS[p["tipo"]].lower()}</a> › <a href="catalogo.html?tipo={p["tipo"]}&cat={p["categoria"]}">{CATS[p["categoria"]]}</a></nav>
 <div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
-<div class="buy"><span class="eyebrow">{e(p["marca"])} · cód. {e(p["sku"])}</span><h1>{e(p["nome"])}</h1>
-<div><div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix</div></div>
-<div class="stock{' low' if p['estoque']<=3 else ''}">{'Últimas %d unidades' % p['estoque'] if p['estoque']<=3 else 'Em estoque, pronta para entrega'}</div>
-{selo(p)}{'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
-<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button><a class="btn ghost" href="carrinho.html">Ir para o carrinho</a></div>
-<div class="ship"><label class="lbl" for="shipcity">Calcular entrega</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
-<a class="btn wa" href="{wa}" target="_blank" rel="noopener">Perguntar se serve no meu veículo</a>
+<div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p["nome"])}</h1>
+{f'<p class="specline">{e(p["spec"])}</p>' if p.get("spec") else ""}
+<div class="pricebox"><div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{", agora ou na entrega" if NA_ENTREGA else ""}</div></div>
+{f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if p["estoque"] <= 3 else ""}
+<p class="corte" data-corte>Pedido até {CFG["corte_mesmo_dia"]} chega hoje até as {CFG["entrega_ate"]}.</p>
+{'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
+<div class="cta"><button class="btn big" type="button" data-buy="{e(p["sku"])}">Comprar agora</button>
+<a class="btn wa" href="{wa_compra}" target="_blank" rel="noopener">Comprar pelo WhatsApp</a>
+<button class="btn ghost" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button></div>
+<div class="ship"><label class="lbl" for="shipcity">Frete para</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
+{confianca()}
+<a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande o modelo e o ano no WhatsApp</a>
 </div></div>
-<section class="prose"><h2>Detalhes</h2><p>{e(p["descricao"])}</p>
-<dl class="facts"><dt>Serve em</dt><dd><ul>{veic}</ul></dd><dt>Marca</dt><dd>{e(p["marca"])}</dd><dt>Código</dt><dd>{e(p["sku"])}</dd><dt>Categoria</dt><dd>{CATS[p["categoria"]]} de {TIPOS[p["tipo"]].lower()}</dd></dl></section>
+{junto_html}
+<section class="prose"><h2>Detalhes</h2><p>{e(desc)}</p>
+<dl class="facts">{ficha(p)}<dt>Serve em</dt><dd><ul>{veic}</ul></dd><dt>Marca</dt><dd>{e(p["marca"])}</dd><dt>Código</dt><dd>{e(p["sku"])}</dd><dt>Garantia</dt><dd>90 dias contra defeito de fabricação. Troca em até 7 dias se não servir.</dd></dl>
+{f'<p class="motolinks">{motos_links}</p>' if motos_links else ""}</section>
 </div>'''
-    ld = [{"@context": "https://schema.org", "@type": "Product", "name": p["nome"], "sku": p["sku"], "description": p["descricao"],
+    ld = [{"@context": "https://schema.org", "@type": "Product", "name": p["nome"], "sku": p["sku"], "mpn": p["sku"], "description": desc,
            "brand": {"@type": "Brand", "name": p["marca"]}, "category": f"{CATS[p['categoria']]} de {TIPOS[p['tipo']].lower()}",
            **({"image": [f"{URL}/{f}" for f in p["fotos"]]} if p["fotos"] else {}),
            "offers": {"@type": "Offer", "price": f"{p['preco']:.2f}", "priceCurrency": "BRL", "url": f"{URL}/{p['url']}",
@@ -345,7 +438,7 @@ def produto(p):
               {"@type": "ListItem", "position": 2, "name": f"Peças de {TIPOS[p['tipo']].lower()}", "item": f"{URL}/catalogo.html?tipo={p['tipo']}"},
               {"@type": "ListItem", "position": 3, "name": p["nome"]}]}]
     pagina(p["url"], f"{p['nome']} | {brl(p['preco'])} com entrega na Grande Vitória",
-           f"{p['nome']} {p['marca']} por {brl(p['preco'])} no Pix. Serve em {', '.join(p['modelos'][:3])}. Entrega por motoboy hoje em Vitória, Vila Velha, Serra e Cariacica.",
+           f"{p['nome']} por {brl(p['preco'])} no Pix. Serve em {', '.join(p['modelos'][:3])}. Entrega por motoboy hoje em Vitória, Vila Velha, Serra, Cariacica e Viana.",
            corpo, ld)
 
 def home_vitrine(artifact=False):
@@ -407,6 +500,30 @@ def cidade(c, ps):
            f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Entrega no mesmo dia para pedidos até {CFG['corte_mesmo_dia']}. Pagamento no Pix.",
            corpo, ld)
 
+def pagina_moto(nome, sl, fams, marca, ps):
+    proprias = pecas_da_moto(ps, fams)
+    kits = [p for p in proprias if p["categoria"] == "kit"]
+    proprias = kits + [p for p in proprias if p["categoria"] != "kit"]
+    gerais = [p for p in ps if p.get("universal") and p["tipo"] == "moto"]
+    tipos = []
+    for p in proprias:
+        t = CATS[p["categoria"]].lower()
+        if p["categoria"] != "kit" and t not in tipos: tipos.append(t)
+    lista = ", ".join(tipos[:5])
+    outras = "".join(f'<a href="{s2}.html">{e(n2)}</a>' for n2, s2, _, _ in MOTOS_ATIVAS if s2 != sl)
+    corpo = f'''<div class="hero"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
+<p>{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</p>
+<div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span></div></div></div>
+<section><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p) for p in proprias)}</div></div></section>
+{f'<section style="padding-top:0"><div class="wrap"><h2>Servem em qualquer moto</h2><div class="grid">{"".join(card(p) for p in gerais)}</div></div></section>' if gerais else ""}
+<section style="padding-top:0"><div class="wrap prose"><h2>Não achou a peça da sua {e(nome)}?</h2><p>Mande o ano da moto e a peça no WhatsApp {e(CFG["whatsapp_exibir"])}. A gente confere na distribuidora e responde com o preço.</p>
+<h2 style="margin-top:28px">Outras motos</h2><div class="cats">{outras}</div></div></section>'''
+    ld = [{"@context": "https://schema.org", "@type": "ItemList", "name": f"Peças para {marca} {nome}",
+           "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{URL}/{p['url']}", "name": p["nome"]} for i, p in enumerate(proprias)]}]
+    pagina(f"{sl}.html", f"Peças para {marca} {nome} com entrega hoje na Grande Vitória | Loja Dias",
+           f"Peças para {marca} {nome}: {lista}. Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Frete grátis acima de {brl(GRATIS)}.",
+           corpo, ld)
+
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
 <p>Entregamos com motoboy em toda a Grande Vitória. Pedidos confirmados até {CFG["corte_mesmo_dia"]} chegam até as {CFG["entrega_ate"]} do mesmo dia. Pedidos depois desse horário chegam no dia seguinte.</p>
@@ -416,7 +533,7 @@ def entrega():
            "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.", corpo)
 
 def carrinho():
-    corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div class="tot" id="tot"></div></div>
+    corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div id="meta" class="meta" hidden></div><div id="sugest" class="sugest" hidden></div><div class="tot" id="tot"></div></div>
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
 <label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
@@ -424,11 +541,14 @@ def carrinho():
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
-<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>
+{('<fieldset><legend class="lbl">Pagamento</legend>'
+'<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
+'<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga ao motoboy quando a peça chegar</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
 <p class="err" id="err" hidden></p>
 <div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
-<a class="btn wa" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
-<p class="note">O pedido abre pronto no WhatsApp da loja. A gente confirma a peça e o horário de entrega na hora.</p></div></div>'''
+<a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
+<p class="note">O pedido abre pronto no WhatsApp da loja. A gente confirma a peça e o horário de entrega na hora.</p>
+{confianca()}</div></div>'''
     head_ = head("Carrinho | Loja Dias Peças", "Seu pedido na Loja Dias Peças.", "carrinho.html")
     out = head_.replace("<title>", '<meta name="robots" content="noindex"><title>', 1) + topo() + "<main>" + corpo + "</main>" + rodape()
     (DIST / "carrinho.html").write_text(out, encoding="utf-8")
@@ -468,7 +588,7 @@ def privacidade():
 
 def extras(ps):
     hoje = date.today().isoformat()
-    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
+    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
@@ -478,10 +598,12 @@ def extras(ps):
 <g:google_product_category>{"Vehicles &amp; Parts &gt; Vehicle Parts &amp; Accessories &gt; Motor Vehicle Parts"}</g:google_product_category></item>
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
-    pub = [{k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
+    pub = [dict({k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon", "fams", "universal")},
+                foto=p["fotos"][0] if p["fotos"] else "") for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["frete_gratis_acima"] = GRATIS
+    cfg["na_entrega"] = NA_ENTREGA
     if FIREBASE:
         cfg["firebase"] = FIREBASE
         cfg["appcheck"] = CFG.get("appcheck_site_key", "")
@@ -498,6 +620,7 @@ def main():
     global VITRINE
     ps = carregar()
     VITRINE = not ps
+    MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
     home(ps); home(ps, artifact=True); entrega(); privacidade()
     if VITRINE:
         pedido()
@@ -505,8 +628,9 @@ def main():
         catalogo(ps); carrinho()
         if FIREBASE:
             minha_conta(); admin()
-    for p in ps: produto(p)
+    for p in ps: produto(p, ps)
     for c in CFG["cidades"]: cidade(c, ps)
+    for n, sl, fams, marca in MOTOS_ATIVAS: pagina_moto(n, sl, fams, marca, ps)
     extras(ps)
     if CFG.get("dominio"):
         (DIST / "CNAME").write_text(CFG["dominio"] + "\n", encoding="utf-8")  # domínio próprio no GitHub Pages

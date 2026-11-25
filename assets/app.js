@@ -27,10 +27,49 @@
 
   // botões "Adicionar"
   document.addEventListener("click", e => {
+    const c = e.target.closest("[data-buy]");
+    if(c){ const s = c.dataset.buy; if(!cart[s]) cart[s]=1; save(); location.href="carrinho.html"; return; }  // comprar agora: vai direto fechar o pedido
     const b = e.target.closest("[data-add]"); if(!b) return;
-    const s = b.dataset.add; cart[s]=(cart[s]||0)+1; save(); badge();
+    const s = b.dataset.add; cart[s]=(cart[s]||0)+1; save(); badge(); bar();
+    document.dispatchEvent(new Event("dias-cart"));
     const t = b.textContent; b.textContent = "Adicionado ✓"; setTimeout(()=>b.textContent=t, 900);
   });
+
+  // Prazo com relógio (hora de Brasília): quanto falta para o corte do mesmo dia. Domingo e depois do corte, diz quando chega.
+  const corte = parseInt(C.corte_mesmo_dia,10) || 12;
+  const prazo = () => {
+    const p = new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+    const g = t => p.find(x=>x.type===t).value;
+    const dia = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(g("weekday")), min = (+g("hour")%24)*60 + (+g("minute"));
+    const falta = corte*60 - min;
+    if(dia>=1 && dia<=6 && falta>0){ const h=Math.floor(falta/60), m=falta%60;
+      return `Peça em até <b>${h?h+"h":""}${String(m).padStart(h?2:1,"0")}${h?"":" min"}</b> e receba hoje até as ${C.entrega_ate}`; }
+    const quando = (dia===6 || dia===0) ? "segunda-feira" : "amanhã";
+    return `Pedido agora chega <b>${quando}</b>, até as ${C.entrega_ate}`;
+  };
+  const tick = () => $$("[data-corte]").forEach(el => el.innerHTML = prazo());
+  if($("[data-corte]")){ tick(); setInterval(tick, 30000); }
+
+  // Barra fixa: na página da peça mostra o preço e "Comprar agora"; com peça no carrinho, mostra o total e "Fechar pedido".
+  const lim0 = Math.min(...C.cidades.map(c=>c.gratis_acima||C.frete_gratis_acima||Infinity));
+  const limMax = Math.max(...C.cidades.map(c=>c.gratis_acima||C.frete_gratis_acima||0));
+  const subtotal = () => Object.entries(cart).reduce((a,[s,q])=>{ const p=P.find(x=>x.sku===s); return a+(p?p.preco*q:0); },0);
+  function bar(){
+    const el = $("#buybar"); if(!el || $("#lines")) return;
+    const n = count(), sub = subtotal(), pd = $("[data-produto]");
+    const p = pd && P.find(x=>x.sku===pd.dataset.produto);
+    let html = "", soCel = false;
+    if(n){
+      const falta = !isFinite(lim0) ? "" : sub<lim0 ? `Faltam ${brl(lim0-sub)} para frete grátis` : sub>=limMax ? "Frete grátis" : "Frete grátis em Vitória, Vila Velha e Cariacica";
+      html = `<div class="txt"><span>${n} ${n>1?"peças":"peça"} no carrinho${falta?" · "+falta:""}</span><b>${brl(sub)}</b></div><a class="btn" href="carrinho.html">Fechar pedido</a>`;
+    } else if(p){
+      soCel = true;
+      html = `<div class="txt"><span>no Pix</span><b>${brl(p.preco)}</b></div><button class="btn" type="button" data-buy="${p.sku}">Comprar agora</button>`;
+    }
+    el.hidden = !html; el.innerHTML = html ? `<div class="in">${html}</div>` : "";
+    el.classList.toggle("so-celular", soCel);
+    document.body.classList.toggle("hasbar", !!html); document.body.classList.toggle("so-celular", soCel);
+  }
 
   // filtros do catálogo
   const grid = $("#grid");
@@ -42,8 +81,8 @@
     if(params.get("tipo")) tipo.value = params.get("tipo");
     const fillVeic = () => {
       const t = tipo.value, set = new Set();
-      P.filter(p=>t==="todos"||p.tipo===t).forEach(p=>p.modelos.forEach(m=>set.add(m)));
-      veic.innerHTML = `<option value="">Todos os veículos</option>` + [...set].sort().map(m=>`<option>${m}</option>`).join("");
+      P.filter(p=>t==="todos"||p.tipo===t).forEach(p=>(p.fams||[]).forEach(m=>set.add(m)));
+      veic.innerHTML = `<option value="">Qual é a sua moto?</option>` + [...set].sort().map(m=>`<option>${m}</option>`).join("");
     };
     const apply = () => {
       const terms = norm(q.value.trim()).split(/\s+/).filter(Boolean), t=tipo.value, v=veic.value;
@@ -51,8 +90,8 @@
       $$("#grid .card").forEach(c=>{
         const p = P.find(x=>x.sku===c.dataset.sku);
         const ok = (t==="todos"||p.tipo===t) && (cat==="todas"||p.categoria===cat)
-          && (!v || p.modelos.includes(v))
-          && terms.every(w => norm(p.nome+" "+(p.nome_real||"")+" "+p.sku+" "+p.marca+" "+p.veiculos.join(" ")).includes(w));
+          && (!v || (p.fams||[]).includes(v) || p.universal)
+          && terms.every(w => norm(p.nome+" "+(p.nome_real||"")+" "+p.sku+" "+p.marca+" "+p.veiculos.join(" ")+" "+(p.fams||[]).join(" ")+(p.categoria==="transmissao"?" transmissao coroa pinhao corrente":"")).includes(w));
         c.hidden = !ok; if(ok) n++;
       });
       $("#none").hidden = n>0;
@@ -81,6 +120,7 @@
       const items = Object.entries(cart).map(([s,q])=>({p:P.find(p=>p.sku===s),q})).filter(i=>i.p);
       const sub = items.reduce((a,i)=>a+i.p.preco*i.q,0);
       const pix = true;
+      const payEl = $('input[name="pay"]:checked'), naEntrega = !!(payEl && payEl.value==="entrega");
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
       const lim = city ? (city.gratis_acima||C.frete_gratis_acima) : null;
@@ -88,7 +128,7 @@
       const gratis = fidel || !!(lim && sub>=lim);
       const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
-      return {items,sub,desc,frete,ship,city,pix,gratis,fidel,lim,total:sub-desc+(frete||0)};
+      return {items,sub,desc,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:sub-desc+(frete||0)};
     };
     const refresh = () => {
       const t = totals(); badge();
@@ -100,10 +140,30 @@
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
         + `<span>Entrega</span><span>${t.fidel?"Grátis (6º pedido)":t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
-        + (t.lim&&!t.gratis&&t.items.length&&t.ship!=="retirada"?`<span class="note" style="grid-column:1/-1">Faltam ${brl(t.lim-t.sub)} para frete grátis em ${t.city.nome}.</span>`:"")
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
       $("#addrbox").hidden = !ent; $("#citybox").hidden = !ent;
+      // meta do frete grátis: usa o valor da cidade escolhida; sem cidade, o menor valor (Vitória, Vila Velha, Cariacica)
+      const meta = $("#meta"), sug = $("#sugest"), alvo = t.lim || (isFinite(lim0)?lim0:0);
+      const mostra = ent && !t.fidel && alvo>0 && t.items.length>0;
+      meta.hidden = !mostra; sug.hidden = true;
+      if(mostra){
+        const falta = alvo - t.sub, onde = t.city ? ` em ${t.city.nome}` : "";
+        meta.classList.toggle("ok", falta<=0);
+        meta.innerHTML = falta>0
+          ? `<span>Faltam ${brl(falta)} para o frete grátis${onde}</span><div class="trilho"><i style="width:${Math.max(6,Math.round(t.sub/alvo*100))}%"></i></div>`
+          : `<span>Frete grátis liberado${onde}${t.city?"":" (Vitória, Vila Velha e Cariacica)"}</span>`;
+        if(falta>0){
+          const ordem = ["freio","filtro","ignicao","transmissao","pneu","eletrica","cabo","acessorio"], rank = p => { const i = ordem.indexOf(p.categoria); return i<0?9:i; };  // o que mais se troca vem primeiro
+          const no = new Set(t.items.map(i=>i.p.sku)), fams = new Set(t.items.flatMap(i=>i.p.fams||[])), cats = new Set(t.items.map(i=>i.p.categoria));
+          const cand = P.filter(p=>!no.has(p.sku) && p.foto && p.categoria!=="kit" && ((p.fams||[]).some(f=>fams.has(f)) || p.universal))
+            .sort((a,b)=> (cats.has(a.categoria)-cats.has(b.categoria)) || (((b.fams||[]).some(f=>fams.has(f)))-((a.fams||[]).some(f=>fams.has(f)))) || (rank(a)-rank(b)) || (Math.abs(a.preco-falta)-Math.abs(b.preco-falta)));
+          const pick = [], usados = new Set();
+          for(const p of cand){ if(usados.has(p.categoria)) continue; pick.push(p); usados.add(p.categoria); if(pick.length===3) break; }
+          sug.hidden = !pick.length;
+          sug.innerHTML = pick.length ? `<span class="lbl">Leve junto e feche o frete grátis</span>` + pick.map(p=>`<div class="s"><img src="${p.foto}" alt="" loading="lazy"><span><a href="${p.url}">${p.nome}</a><b>${brl(p.preco)}</b></span><button class="add" type="button" data-add="${p.sku}">Adicionar</button></div>`).join("") : "";
+        }
+      }
       let err = "";
       if(!t.items.length) err = "Adicione pelo menos uma peça.";
       else if(t.items.every(i=>i.p.addon) && t.sub < (C.frete_gratis_acima||0)) err = `Essas são peças de complemento. Junte com outra peça ou complete ${brl(C.frete_gratis_acima)}.`;
@@ -112,7 +172,8 @@
       else if(!$("#name").value.trim()) err = "Informe seu nome.";
       $("#err").hidden = !err; $("#err").textContent = err;
       const send = $("#send"); send.setAttribute("aria-disabled", !!err);
-      $("#pixbox").hidden = !!err;
+      $("#pixbox").hidden = !!err || t.naEntrega;
+      send.textContent = t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
       if(err){ send.href = "#"; return; }
       const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8);
       $("#pixcode").value = pixCode(t.total, txid);
@@ -121,9 +182,9 @@
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
-        `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
+        t.naEntrega ? `Pagamento: Pix na entrega, ao motoboy` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
-      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
+      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
     };
     let ultimo = null;
     $("#send").addEventListener("click", ()=>{
@@ -138,6 +199,7 @@
       if(d.inc) cart[d.inc]++; else if(d.dec){ cart[d.dec]--; if(cart[d.dec]<=0) delete cart[d.dec]; } else return;
       save(); refresh(); });
     $$(".cartpage input,.cartpage select").forEach(el=>el.addEventListener("input", refresh));
+    document.addEventListener("dias-cart", refresh);
     refresh();
   }
   // formulário de pedido (modo vitrine, sem catálogo)
@@ -162,5 +224,9 @@
   document.addEventListener("click", e => { const t = e.target.closest(".thumb"); if(!t) return;
     $("#fotomain").src = t.dataset.foto; $$(".thumb").forEach(x=>x.setAttribute("aria-pressed", x===t)); });
 
-  badge();
+  badge(); bar();
+  const cta = $(".cta");
+  if(cta && "IntersectionObserver" in window){
+    new IntersectionObserver(es => document.body.classList.toggle("cta-visivel", es[0].isIntersecting)).observe(cta);
+  }
 })();
