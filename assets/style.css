@@ -397,3 +397,8 @@ footer{background:#1a1a1a}
 .demo{background:var(--accent);color:#1a1a1a}
 .chip i{background:var(--accent)}
 .chip.u i{background:var(--urgent)}
+/* celular estreito: logo nunca encosta no Carrinho, mesmo antes da fonte carregar */
+@media (max-width:640px){.top .logo{font-size:clamp(19px,6.2vw,24px);white-space:nowrap;max-width:calc(100% - 128px);overflow:hidden;text-overflow:clip}}
+@media (max-width:380px){.top .nav .cartlink{padding:6px 10px;gap:6px}}
+.hero2 .wrap>*,.maisv li>*{min-width:0}
+.hero2 .hl{grid-template-columns:minmax(0,1fr)}.search input{width:100%}
