@@ -177,9 +177,12 @@ def head(title, desc, path, extra_ld=None, artifact=False):
     canon = f"{URL}/{'' if path == 'index.html' else path}"
     ld = "".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in (extra_ld or []))
     gid = CFG.get("google_ads_id", "")  # tag do Google Ads: liga sozinha quando o config tiver o ID (ex.: AW-123)
-    if gid and not artifact:
-        ld += (f'<script async src="https://www.googletagmanager.com/gtag/js?id={e(gid)}"></script>'
-               f'<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag("js",new Date());gtag("config","{e(gid)}");</script>')
+    ga = CFG.get("ga4_id", "")  # contador de visitas (Google Analytics, G-XXXX): liga sozinho quando o config tiver o ID
+    tags = [t for t in (ga, gid) if t]
+    if tags and not artifact:
+        ld += (f'<script async src="https://www.googletagmanager.com/gtag/js?id={e(tags[0])}"></script>'
+               f'<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag("js",new Date());'
+               + "".join(f'gtag("config","{e(t)}");' for t in tags) + '</script>')
     meta = (f'<title>{e(title)}</title><meta name="description" content="{e(desc)}">'
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
@@ -706,6 +709,7 @@ def privacidade():
 <p>Não guardamos CPF, dados de cartão nem dados bancários. O pagamento é por Pix, feito no app do seu banco.</p>
 <h2>Para quê</h2><p>Só para entregar seus pedidos, preencher o endereço automaticamente, mostrar seu histórico, contar os pedidos do programa de fidelidade (6º pedido com frete grátis) e, <b>só se você marcar</b>, lembrar no WhatsApp quando chegar a hora da troca. Você pode desmarcar o lembrete quando quiser. Não vendemos nem compartilhamos seus dados para propaganda.</p>
 {'<h2>Anúncios do Google</h2><p>O site usa a tag do Google Ads para saber se um anúncio trouxe uma venda. O Google pode gravar cookies no seu navegador para isso. Quando um pedido é enviado, mandamos ao Google só o valor e o código do pedido, sem nome, telefone ou endereço. Você pode bloquear esses cookies no navegador ou desligar anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>.</p>' if CFG.get("google_ads_id") else ""}
+{'<h2>Contador de visitas</h2><p>O site usa o Google Analytics para contar visitas: quantas pessoas entram, de onde vêm e quais páginas e peças abrem. O Google grava cookies no seu navegador para isso. Não mandamos nome, telefone nem endereço. Você pode bloquear esses cookies no navegador ou instalar o <a href="https://tools.google.com/dlpage/gaoptout?hl=pt-BR" target="_blank" rel="noopener">bloqueador do Google Analytics</a>.</p>' if CFG.get("ga4_id") else ""}
 {'<h2>Proteção contra robôs</h2><p>Na conta e no login, o site usa o Google reCAPTCHA para barrar acessos automáticos. Ele analisa sinais do navegador e do uso da página, segundo a <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">política de privacidade do Google</a>.</p>' if CFG.get("appcheck_site_key") else ""}
 <h2>Onde ficam</h2><p>No Google Firebase (servidor em São Paulo). Cada cliente só consegue ver os próprios dados.</p>
 <h2>Por quanto tempo</h2><p>Enquanto sua conta existir. Você pode apagar tudo quando quiser em <a href="minha-conta.html">Minha conta</a> › Apagar minha conta. Isso apaga seus dados, seu histórico e o acesso de login na hora. Conversas no WhatsApp seguem as regras do WhatsApp.</p>
@@ -729,6 +733,7 @@ def extras(ps):
                 foto=p["fotos"][0] if p["fotos"] else "") for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
+    cfg["ga"] = CFG.get("ga4_id", "")
     cfg["frete_gratis_acima"] = GRATIS
     cfg["na_entrega"] = NA_ENTREGA
     if FIREBASE:

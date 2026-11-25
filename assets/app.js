@@ -10,6 +10,8 @@
   const save = () => { try{ localStorage.setItem("dias-cart",JSON.stringify(cart)) }catch(e){} };
   const count = () => Object.values(cart).reduce((a,b)=>a+b,0);
   const badge = () => $$(".cartcount").forEach(b=>b.textContent=count());
+  // contador de visitas (Google Analytics): só manda evento quando o config tiver o ID
+  const ga = (nome, dados) => { try{ if(C.ga && window.gtag) gtag("event", nome, Object.assign({send_to:C.ga}, dados||{})); }catch(e){} };
 
 
   // Pix copia e cola (BR Code estático, padrão do Banco Central) com valor fixo
@@ -28,9 +30,10 @@
   // botões "Adicionar"
   document.addEventListener("click", e => {
     const c = e.target.closest("[data-buy]");
-    if(c){ const s = c.dataset.buy; if(!cart[s]) cart[s]=1; save(); location.href="carrinho.html"; return; }  // comprar agora: vai direto fechar o pedido
+    if(c){ const s = c.dataset.buy; if(!cart[s]) cart[s]=1; save(); ga("add_to_cart", {items:[{item_id:s}]}); location.href="carrinho.html"; return; }  // comprar agora: vai direto fechar o pedido
     const b = e.target.closest("[data-add]"); if(!b) return;
     const s = b.dataset.add; cart[s]=(cart[s]||0)+1; save(); badge(); bar();
+    ga("add_to_cart", {items:[{item_id:s}]});
     document.dispatchEvent(new Event("dias-cart"));
     const t = b.textContent; b.textContent = "Adicionado ✓"; setTimeout(()=>b.textContent=t, 900);
   });
@@ -190,6 +193,7 @@
     $("#send").addEventListener("click", ()=>{
       if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{});
       // conversão do Google Ads (só quando o config tiver ID e label)
+      if(ultimo) ga("purchase", {transaction_id:ultimo.txid, value:ultimo.total, currency:"BRL", items:ultimo.itens.map(i=>({item_id:i.sku, item_name:i.nome, item_category:i.categoria, quantity:i.qtd, price:i.preco}))});
       if(ultimo && C.ads && C.ads.id && C.ads.label && window.gtag) gtag("event","conversion",{send_to:`${C.ads.id}/${C.ads.label}`, value:ultimo.total, currency:"BRL", transaction_id:ultimo.txid});
     });
     $("#pixcopy").addEventListener("click", async e=>{ const ta=$("#pixcode");
