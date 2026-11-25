@@ -214,7 +214,7 @@ def topo():
     faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} <span class="demo2">(Serra e Viana: <span class="pc">acima de </span>R$ 89,90)</span></div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
-<nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Peças de moto</a>{'<a class="indlink" href="indique.html">Indique e ganhe</a>' if IND and not VITRINE else ""}{"" if SO_MOTO else f'<a href="{lk("carro")}">Carro</a>'}
+<nav class="nav" aria-label="Principal">{"" if SO_MOTO else f'<a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Carro</a>'}{f'<a class="indlink" href="indique.html">Indique e ganhe <em>{round(IND["comissao"]*100)}%</em></a>' if IND and not VITRINE else ""}
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>{'<a id="contalink" href="minha-conta.html">Entrar</a>' if FIREBASE and not VITRINE else ""}
 {'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>{catbar()}'''
 

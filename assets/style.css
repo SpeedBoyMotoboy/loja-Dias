@@ -417,7 +417,13 @@ footer{background:#1a1a1a}
 .indique ol{padding-left:22px}
 .indique ol li{margin:6px 0}
 .btn.share{width:100%;margin-top:10px}
-/* Luan 25/11: Indique e ganhe em destaque no topo */
-.top .nav a.indlink{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--accent);color:var(--accent);border-radius:9px;padding:5px 11px;font-weight:700}
-.top .nav a.indlink::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(212,160,23,.25)}
-.top .nav a.indlink:hover{background:var(--accent);color:var(--accent-ink)}
+/* Luan 25/11: Indique e ganhe em destaque no topo (sem "Peças de moto"; no celular cabe sem rolar) */
+.top .nav a.indlink{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:8px 16px;font-weight:800;font-size:15px;box-shadow:0 0 0 3px rgba(212,160,23,.35),0 6px 18px rgba(0,0,0,.25);animation:indpulse 2.4s ease-in-out infinite}
+.top .nav a.indlink em{font-style:normal;background:var(--blue);color:#fff;border-radius:999px;padding:1px 7px;font-size:12px;font-weight:800}
+.top .nav a.indlink:hover{color:var(--accent-ink);filter:brightness(1.06)}
+@keyframes indpulse{0%,100%{box-shadow:0 0 0 3px rgba(212,160,23,.35),0 6px 18px rgba(0,0,0,.25)}50%{box-shadow:0 0 0 7px rgba(212,160,23,.12),0 6px 18px rgba(0,0,0,.25)}}
+@media (prefers-reduced-motion:reduce){.top .nav a.indlink{animation:none}}
+.top .nav .cartlink{background:#fff;color:var(--blue)!important}
+.top .nav .cartlink b{background:var(--blue);color:#fff}
+@media (max-width:640px){.top .nav{overflow:visible;gap:14px;justify-content:space-between}.top .nav a{font-size:14px}.top .nav a.indlink{padding:6px 12px;font-size:14px}}
+@media (max-width:370px){.top .nav{gap:10px}.top .nav a{font-size:13px}.top .nav a.indlink{padding:6px 10px;font-size:13px}}
