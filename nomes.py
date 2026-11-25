@@ -37,7 +37,7 @@ def _parse(v):
         return None
     return g.group(1), int(g.group(2)), int(g.group(3)) if g.group(3) else None
 
-def familias(veiculos):
+def familias(veiculos, primeiro=()):
     """Lista ordenada de (familia, [variantes], ano_ini, ano_fim) só de motos. ano_* = None quando as variantes divergem."""
     fam = {}
     for v in veiculos:
@@ -49,8 +49,8 @@ def familias(veiculos):
         if var and var not in d["vars"]:
             d["vars"].append(var)
         d["anos"].add((p[1], p[2]))
-    def chave(f):
-        return (PRIORIDADE.index(f) if f in PRIORIDADE else 99, list(fam).index(f))
+    def chave(f):  # 'primeiro': famílias da página por moto, para a peça aparecer com o nome daquela moto
+        return (f not in primeiro, PRIORIDADE.index(f) if f in PRIORIDADE else 99, list(fam).index(f))
     out = []
     for f in sorted(fam, key=chave):
         d = fam[f]
@@ -59,8 +59,8 @@ def familias(veiculos):
         out.append((f, sorted(d["vars"], key=lambda x: ordem.index(x) if x in ordem else 9), ini, fim))
     return out
 
-def resumo_motos(veiculos, max_fam=2, ano_atual=2026):
-    fs = familias(veiculos)
+def resumo_motos(veiculos, max_fam=2, ano_atual=2026, primeiro=()):
+    fs = familias(veiculos, primeiro)
     if not fs:
         return ""
     partes = []
@@ -91,7 +91,7 @@ def spec_relacao(desc):
     return {"corrente": g.group(1) + ("H" if "H" in g.group(2) else ""), "elos": int(g.group(3)), "coroa": int(g.group(4)), "pinhao": int(g.group(5)),
             "retentor": bool(re.search(r"O.?RING", desc.upper()))}
 
-def nome_por_moto(nome_real, categoria, veiculos, fallback):
+def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
     """Devolve (nome, spec_curta). Se não reconhecer o tipo da peça, devolve o nome antigo (fallback)."""
     partes = [x.strip() for x in nome_real.split(" - ")]
     if len(partes) < 3:
@@ -126,7 +126,7 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback):
         extra = f" {resto}" if resto else ""
     elif "organica" in nd:
         spec = "Orgânica"
-    motos = resumo_motos(veiculos)
+    motos = resumo_motos(veiculos, primeiro=primeiro)
     nome = f"{tipo}{extra}" + (f" {motos}" if motos else "") + (f" {marca}" if marca else "")
     return re.sub(r"\s+", " ", nome).strip(), spec
 

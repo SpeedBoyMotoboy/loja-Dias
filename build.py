@@ -229,7 +229,9 @@ def selo(p):
         return f'<div class="stock">Compre junto e ganhe frete grátis</div>'
     return ""
 
-def card(p):
+def card(p, foco=()):
+    if foco and p["categoria"] != "kit":  # na página da Bros, a peça aparece como "Filtro de ar Bros 160, ..." e não com o nome de outra moto
+        p = dict(p, nome=nome_por_moto(p["nome_real"], p["categoria"], p["veiculos"], p["nome"], primeiro=foco)[0])
     img = f'<img src="{p["fotos"][0]}" alt="{e(p["nome"])}" loading="lazy">' if p["fotos"] else icon(p["categoria"])
     low = p["estoque"] <= 3
     # O nome já diz a moto. Embaixo vai só o que ajuda a escolher: medida da relação ou "serve em qualquer moto".
@@ -514,7 +516,7 @@ def pagina_moto(nome, sl, fams, marca, ps):
     corpo = f'''<div class="hero"><div class="wrap"><h1>Peças para {e(nome)} com entrega hoje</h1>
 <p>{len(proprias)} peças que servem na {e(marca)} {e(nome)}: {e(lista)}. Entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.</p>
 <div class="chips"><span class="chip u"><i></i><span data-corte>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span></span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>{"Pix agora ou na entrega" if NA_ENTREGA else "Pix copia e cola"}</span></div></div></div>
-<section><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p) for p in proprias)}</div></div></section>
+<section><div class="wrap"><h2>Feitas para a {e(nome)}</h2><div class="grid">{"".join(card(p, fams) for p in proprias)}</div></div></section>
 {f'<section style="padding-top:0"><div class="wrap"><h2>Servem em qualquer moto</h2><div class="grid">{"".join(card(p) for p in gerais)}</div></div></section>' if gerais else ""}
 <section style="padding-top:0"><div class="wrap prose"><h2>Não achou a peça da sua {e(nome)}?</h2><p>Mande o ano da moto e a peça no WhatsApp {e(CFG["whatsapp_exibir"])}. A gente confere na distribuidora e responde com o preço.</p>
 <h2 style="margin-top:28px">Outras motos</h2><div class="cats">{outras}</div></div></section>'''
