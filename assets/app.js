@@ -164,7 +164,7 @@
     const refresh = () => {
       const t = totals(); badge();
       lines.innerHTML = t.items.length ? t.items.map(i=>`
-        <div class="line"><a href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind?` <small class="indtag">−${pctInd}</small>`:""}</b>
+        <div class="line"><a class="lfoto" href="${i.p.url}" tabindex="-1" aria-hidden="true">${i.p.foto?`<img src="${i.p.foto}" alt="" loading="lazy" width="64" height="64">`:""}</a><a class="lnome" href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind?` <small class="indtag">−${pctInd}</small>`:""}</b>
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
       $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
