@@ -20,6 +20,7 @@ DEMO = EXEMPLO
 VITRINE = False  # definido em main(): sem peças reais, o site vira vitrine com pedido pelo WhatsApp
 FRETE_OK = CFG.get("fretes_confirmados", False)
 GRATIS = CFG.get("frete_gratis_acima") or 0
+FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
@@ -122,7 +123,7 @@ def topo():
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Moto</a><a href="{lk("carro")}">Carro</a>
-<a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>
+<a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>{'<a id="contalink" href="minha-conta.html">Entrar</a>' if FIREBASE and not VITRINE else ""}
 {'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>'''
 
 def lk(t):
@@ -138,7 +139,7 @@ def rodape(artifact=False):
 <div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a></div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
-<script src="assets/loja.js"></script><script src="assets/app.js"></script>{tail}'''
+<script src="assets/loja.js"></script><script src="assets/app.js"></script>{'<script type="module" src="assets/conta.js"></script>' if FIREBASE and not VITRINE else ""}{tail}'''
 
 def selo(p):
     if GRATIS and p["preco"] < 20:
@@ -348,12 +349,20 @@ def carrinho():
     out = head_.replace("<title>", '<meta name="robots" content="noindex"><title>', 1) + topo() + "<main>" + corpo + "</main>" + rodape()
     (DIST / "carrinho.html").write_text(out, encoding="utf-8")
 
+def minha_conta():
+    corpo = '''<section><div class="wrap prose" style="max-width:640px"><h1>Minha conta</h1>
+<div id="conta" class="panel"><p class="note">Carregando…</p></div>
+<p class="note">Seus dados ficam guardados com segurança no Google e só você vê. A loja usa o endereço só para a entrega.</p></div></section>'''
+    head_ = head("Minha conta | Loja Dias Peças", "Sua conta na Loja Dias Peças.", "minha-conta.html")
+    out = head_.replace("<title>", '<meta name="robots" content="noindex"><title>', 1) + topo() + "<main>" + corpo + "</main>" + rodape()
+    (DIST / "minha-conta.html").write_text(out, encoding="utf-8")
+
 def extras(ps):
     hoje = date.today().isoformat()
     urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
-    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
+    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
     itens = "".join(f'''<item><g:id>{xesc(p["sku"])}</g:id><g:title>{xesc(p["nome"])}</g:title><g:description>{xesc(p["descricao"])}</g:description>
 <g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{xesc(p['imagem'])}</g:image_link>" if p["imagem"] else ""}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
 <g:price>{p["preco"]:.2f} BRL</g:price><g:brand>{xesc(p["marca"])}</g:brand><g:mpn>{xesc(p["sku"])}</g:mpn><g:condition>new</g:condition>
@@ -363,13 +372,15 @@ def extras(ps):
     pub = [{k: p[k] for k in ("sku", "nome", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon")} for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "cidades")}
     cfg["frete_gratis_acima"] = GRATIS
+    if FIREBASE:
+        cfg["firebase"] = FIREBASE
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")
 
 def main():
     if DIST.exists():
         shutil.rmtree(DIST)
     (DIST / "assets").mkdir(parents=True)
-    for f in ("style.css", "app.js"):
+    for f in ("style.css", "app.js", "conta.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
     global VITRINE
     ps = carregar()
@@ -379,6 +390,8 @@ def main():
         pedido()
     else:
         catalogo(ps); carrinho()
+        if FIREBASE:
+            minha_conta()
     for p in ps: produto(p)
     for c in CFG["cidades"]: cidade(c, ps)
     extras(ps)

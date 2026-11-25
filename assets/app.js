@@ -122,7 +122,10 @@
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
+      ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,qtd:i.q,preco:i.p.preco}))};
     };
+    let ultimo = null;
+    $("#send").addEventListener("click", ()=>{ if(ultimo && window.LojaConta) window.LojaConta.salvarPedido(ultimo).catch(()=>{}); });
     $("#pixcopy").addEventListener("click", async e=>{ const ta=$("#pixcode");
       try{ await navigator.clipboard.writeText(ta.value); e.target.textContent="Copiado ✓"; }catch(_){ ta.select(); e.target.textContent="Selecione e copie"; }
       setTimeout(()=>e.target.textContent="Copiar código Pix",1500); });
