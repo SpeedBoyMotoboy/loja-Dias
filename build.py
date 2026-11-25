@@ -26,6 +26,8 @@ FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 NA_ENTREGA = CFG.get("pagar_na_entrega", False)  # Pix ao motoboy na entrega; só liga com ok do Luan
 # Programa de indicação (25/11): link por pessoa (?ref=CODIGO). Desconto para quem compra e comissão para quem indica,
 # só nas peças em que ainda sobra o lucro mínimo depois dos dois (nunca prejuízo).
+# Avaliações (25/11): estrelas, texto e fotos no Firestore; vídeo só com Storage (plano Blaze) e "video_avaliacao": true
+AVAL = bool(CFG.get("firebase")) and CFG.get("avaliacoes", True)
 IND = CFG.get("indicacao") if (CFG.get("indicacao") or {}).get("ligada") else None
 GARANTIA = "Garantia de 90 dias contra defeito de fabricação"  # garantia legal (CDC, art. 26)
 
@@ -401,8 +403,11 @@ def loja_ld():
             "paymentAccepted": "Pix", "openingHours": "Mo-Sa 08:00-18:00"}
 
 # ---------- páginas ----------
-def pagina(path, title, desc, corpo, ld=None, artifact=False):
-    out = head(title, desc, path, ld, artifact) + topo() + "<main>" + corpo + "</main>" + rodape(artifact)
+def pagina(path, title, desc, corpo, ld=None, artifact=False, js=""):
+    rod = rodape(artifact)
+    if js:  # módulo extra depois do conta.js (que abre o Firebase)
+        rod = rod.replace("</body></html>", js + "</body></html>") if rod.endswith("</body></html>") else rod + js
+    out = head(title, desc, path, ld, artifact) + topo() + "<main>" + corpo + "</main>" + rod
     (DIST / path).write_text(out, encoding="utf-8")
 
 def mais_barata(ps, cat, termo=""):
@@ -572,7 +577,7 @@ def produto(p, ps=()):
     desc = p["descricao"]
     corpo = f'''<div class="wrap"><nav class="crumbs" aria-label="Caminho"><a href="index.html">Início</a> › <a href="catalogo.html?tipo={p["tipo"]}">Peças de {TIPOS[p["tipo"]].lower()}</a> › <a href="catalogo.html?tipo={p["tipo"]}&cat={p["categoria"]}">{CATS[p["categoria"]]}</a></nav>
 <div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
-<div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p.get("titulo") or p["nome"])}</h1>
+<div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p.get("titulo") or p["nome"])}</h1>{'<a class="avlink" href="#avaliacoes">Avaliações de clientes</a>' if AVAL else ""}
 {f'<p class="specline">{e(p.get("conteudo") or p["spec"])}</p>' if p.get("spec") or p.get("conteudo") else ""}
 <div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{", agora ou na entrega" if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if p["estoque"] <= 3 else ""}
@@ -592,6 +597,7 @@ def produto(p, ps=()):
 <section class="prose"><h2>Detalhes</h2><p>{e(desc)}</p>
 <dl class="facts">{ficha(p)}<dt>Serve em</dt><dd><ul>{veic}</ul></dd><dt>Marca</dt><dd>{e(", ".join(dict.fromkeys(x["marca"] for x in kit)) if kit else p["marca"])}</dd><dt>Código</dt><dd>{e(p["sku"])}</dd><dt>Garantia</dt><dd>90 dias contra defeito de fabricação. Troca em até 7 dias se não servir.</dd></dl>
 {f'<p class="motolinks">{motos_links}</p>' if motos_links else ""}</section>
+{avaliacoes_html(p)}
 </div>'''
     ld = [{"@context": "https://schema.org", "@type": "Product", "name": p["nome"], "sku": p["sku"], "mpn": p["sku"], "description": desc,
            "brand": {"@type": "Brand", "name": p["marca"]}, "category": f"{CATS[p['categoria']]} de {TIPOS[p['tipo']].lower()}",
@@ -605,7 +611,16 @@ def produto(p, ps=()):
               {"@type": "ListItem", "position": 3, "name": p["nome"]}]}]
     pagina(p["url"], f"{p['nome']} | {brl(p['preco'])} com entrega na Grande Vitória",
            f"{p['nome']} por {brl(p['preco'])} no Pix. Serve em {', '.join(p['modelos'][:3])}. Entrega por motoboy hoje em Vitória, Vila Velha, Serra, Cariacica e Viana.",
-           corpo, ld)
+           corpo, ld, js='<script type="module" src="assets/avaliacoes.js"></script>' if AVAL else "")
+
+def avaliacoes_html(p):
+    """Avaliações de clientes (estrelas, texto, fotos e vídeo). Conteúdo vem do Firebase só depois de aprovado em moderar.html."""
+    if not AVAL:
+        return ""
+    return f'''<section class="prose avaliacoes" id="avaliacoes" data-sku="{e(p["sku"])}" data-nome="{e(p["nome"][:90])}"><h2>Avaliações de clientes</h2>
+<p class="note" id="avmedia">Carregando avaliações…</p><div id="avlista"></div>
+<h3>Avaliar esta peça</h3><div id="avform"><button class="btn ghost" type="button" id="avir">Escrever avaliação</button></div>
+<dialog id="avdlg" class="avdlg"><button class="btn ghost" type="button" id="avfechar">Fechar</button><div id="avdlgc"></div></dialog></section>'''
 
 def home_vitrine(artifact=False):
     corpo = f'''<div class="hero"><div class="wrap">
@@ -769,10 +784,16 @@ def carrinho():
     (DIST / "carrinho.html").write_text(out, encoding="utf-8")
 
 def admin():
-    corpo = '''<section><div class="wrap prose" style="max-width:760px"><h1>Pedidos da loja</h1><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
+    corpo = '''<section><div class="wrap prose" style="max-width:760px"><h1>Pedidos da loja</h1><p><a class="btn ghost" href="moderar.html">Avaliações para conferir</a></p><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
     out = head("Pedidos | Loja Dias", "Tela da loja.", "admin.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
         + topo() + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
     (DIST / "admin.html").write_text(out, encoding="utf-8")
+
+def moderar():
+    corpo = '''<section><div class="wrap prose" style="max-width:860px"><h1>Avaliações para conferir</h1><div id="moderar"><p class="note">Carregando…</p></div></div></section>'''
+    out = head("Avaliações | Loja Dias", "Tela da loja.", "moderar.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
+        + topo() + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/moderar.js"></script>')
+    (DIST / "moderar.html").write_text(out, encoding="utf-8")
 
 def minha_conta():
     corpo = '''<section><div class="wrap prose" style="max-width:640px"><h1>Minha conta</h1>
@@ -796,6 +817,7 @@ def privacidade():
 {'<h2>Anúncios do Google</h2><p>O site usa a tag do Google Ads para saber se um anúncio trouxe uma venda. O Google pode gravar cookies no seu navegador para isso. Quando um pedido é enviado, mandamos ao Google só o valor e o código do pedido, sem nome, telefone ou endereço. Você pode bloquear esses cookies no navegador ou desligar anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>.</p>' if CFG.get("google_ads_id") else ""}
 {'<h2>Contador de visitas</h2><p>O site usa o Google Analytics para contar visitas: quantas pessoas entram, de onde vêm e quais páginas e peças abrem. O Google grava cookies no seu navegador para isso. Não mandamos nome, telefone nem endereço. Você pode bloquear esses cookies no navegador ou instalar o <a href="https://tools.google.com/dlpage/gaoptout?hl=pt-BR" target="_blank" rel="noopener">bloqueador do Google Analytics</a>.</p>' if CFG.get("ga4_id") else ""}
 {'<h2>Proteção contra robôs</h2><p>Na conta e no login, o site usa o Google reCAPTCHA para barrar acessos automáticos. Ele analisa sinais do navegador e do uso da página, segundo a <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">política de privacidade do Google</a>.</p>' if CFG.get("appcheck_site_key") else ""}
+{'<h2>Avaliações de peças</h2><p>Se você avaliar uma peça, guardamos a nota, o texto, o nome que você escolheu mostrar, as fotos e o código da sua conta. Depois que a loja confere, a nota, o texto, o nome e as fotos ficam públicos na página da peça. As fotos são reduzidas no seu aparelho antes de enviar, e a localização (GPS) gravada na foto é apagada. Só usamos suas fotos fora da avaliação (no site e nas redes da loja) se você marcar que autoriza. Você pode apagar sua avaliação na página da peça ou apagando sua conta.</p>' if AVAL else ""}
 <h2>Onde ficam</h2><p>No Google Firebase (servidor em São Paulo). Cada cliente só consegue ver os próprios dados.</p>
 <h2>Por quanto tempo</h2><p>Enquanto sua conta existir. Você pode apagar tudo quando quiser em <a href="minha-conta.html">Minha conta</a> › Apagar minha conta. Isso apaga seus dados, seu histórico e o acesso de login na hora. Conversas no WhatsApp seguem as regras do WhatsApp.</p>
 <h2>Seus direitos</h2><p>Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento pelo WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
@@ -807,7 +829,7 @@ def extras(ps):
     urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
-    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
+    (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /moderar.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
     itens = "".join(f'''<item><g:id>{xesc(p["sku"])}</g:id><g:title>{xesc(p["nome"])}</g:title><g:description>{xesc(p["descricao"])}</g:description>
 <g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{URL}/{p['fotos'][0]}</g:image_link>" if p["fotos"] else ""}{"".join(f"<g:additional_image_link>{URL}/{f}</g:additional_image_link>" for f in p["fotos"][1:10])}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
 <g:price>{p["preco"]:.2f} BRL</g:price><g:brand>{xesc(p["marca"])}</g:brand><g:mpn>{xesc(p["sku"])}</g:mpn><g:condition>new</g:condition>
@@ -827,6 +849,7 @@ def extras(ps):
     if FIREBASE:
         cfg["firebase"] = FIREBASE
         cfg["appcheck"] = CFG.get("appcheck_site_key", "")
+        cfg["video_avaliacao"] = bool(CFG.get("video_avaliacao", False))
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")
 
 def main():
@@ -835,11 +858,12 @@ def main():
     (DIST / "assets").mkdir(parents=True)
     if (RAIZ / "img").exists():
         shutil.copytree(RAIZ / "img", DIST / "img")
-    for f in ("style.css", "app.js", "conta.js", "admin.js"):
+    for f in ("style.css", "app.js", "conta.js", "admin.js", "avaliacoes.js", "moderar.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
-    global VITRINE
+    global VITRINE, AVAL
     ps = carregar()
     VITRINE = not ps
+    AVAL = AVAL and not VITRINE
     MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
     home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos()
     if VITRINE:
@@ -849,7 +873,7 @@ def main():
         if IND:
             indique(ps)
         if FIREBASE:
-            minha_conta(); admin()
+            minha_conta(); admin(); moderar()
     for p in ps: produto(p, ps)
     for c in CFG["cidades"]: cidade(c, ps)
     for n, sl, fams, marca in MOTOS_ATIVAS: pagina_moto(n, sl, fams, marca, ps)
