@@ -10,6 +10,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
 from build import preco_de_custo, eh_isca  # mesma regra de margem do site
+import json
+SO_MOTO = json.load(open(RAIZ / "dados/config.json", encoding="utf-8")).get("so_moto", False)
 ESTOQUE_MIN = 3   # mínimo na Real para a peça entrar no site
 # Kits (Mesa 24/11): só entram se todas as peças estão no site. Preço = soma das peças com 5% off.
 KITS = [
@@ -102,6 +104,8 @@ def main():
         veic = col(r, "aplicacao", "veiculos", "aplicacao/veiculos")
         cr = norm(col(r, "categoria"))
         tipo = "carro" if cr.startswith("carro") else "moto" if cr.startswith("moto") else "carro" if any(w in norm(nome + " " + veic) + " " for w in CARRO) or "carro" in norm(col(r, "categoria")) else "moto"
+        if SO_MOTO and tipo == "carro":  # Luan 24/11: por enquanto só 2 rodas
+            continue
         vistos.add(sku)
         saida.append({"sku": sku, "nome": nome[:90], "tipo": tipo, "categoria": cat, "marca": col(r, "marca") or "",
                       "veiculos": ";".join(modelos(veic))[:400] or "Consultar aplicação no WhatsApp",

@@ -25,6 +25,7 @@ FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 CATS = {"freio": "Freios", "transmissao": "Relação e correias", "filtro": "Filtros", "oleo": "Óleo",
         "ignicao": "Velas e ignição", "eletrica": "Bateria e elétrica", "cabo": "Cabos",
         "pneu": "Pneus e câmaras", "palheta": "Palhetas", "acessorio": "Retrovisor e manetes", "kit": "Kits prontos"}
+SO_MOTO = CFG.get("so_moto", False)  # Luan 24/11: por enquanto só 2 rodas
 TIPOS = {"moto": "Moto", "carro": "Carro"}
 ICON = {
  "transmissao": '<circle cx="20" cy="32" r="12"/><circle cx="20" cy="32" r="3"/><circle cx="48" cy="32" r="7"/><path d="M20 20 48 25M20 44l28-5"/>',
@@ -134,7 +135,7 @@ def topo():
     faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} (Serra e Viana: acima de R$ 89,90)</div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
-<nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Moto</a><a href="{lk("carro")}">Carro</a>
+<nav class="nav" aria-label="Principal"><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Carro</a>'}
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>{'<a id="contalink" href="minha-conta.html">Entrar</a>' if FIREBASE and not VITRINE else ""}
 {'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>'''
 
@@ -148,7 +149,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Peças de carro</a><a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a></div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="privacidade.html">Privacidade</a></div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener">WhatsApp</a>
 <script src="assets/loja.js"></script><script src="assets/app.js"></script>{'<script type="module" src="assets/conta.js"></script>' if FIREBASE and not VITRINE else ""}{tail}'''
@@ -201,22 +202,21 @@ def pagina(path, title, desc, corpo, ld=None, artifact=False):
 def home(ps, artifact=False):
     if VITRINE:
         return home_vitrine(artifact)
-    destaque = [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
+    destaque = [p for p in ps if p["tipo"] == "moto"][:8] if SO_MOTO else [p for p in ps if p["tipo"] == "moto"][:4] + [p for p in ps if p["tipo"] == "carro"][:4]
     cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     corpo = f'''<div class="hero"><div class="wrap">
 <span class="eyebrow" style="color:var(--road-muted)">Grande Vitória · ES</span>
 <h1>Peça de moto e carro na sua porta, hoje</h1>
 <p>Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Pagamento no Pix.</p>
-<form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de óleo Onix" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
+<form class="search" action="catalogo.html" role="search"><input name="q" id="hq" placeholder="Ex.: pastilha CG 160, filtro de ar Bros" aria-label="Buscar peça"><button class="btn" type="submit">Buscar</button></form>
 <div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
-<a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>
-<a class="door" href="catalogo.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria e correia para Onix, HB20, Gol, Argo e mais.</span></a>
+<a class="door" href="catalogo.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus e óleo para CG, Biz, Pop, Bros, Factor, Fazer e mais.</span></a>{"" if SO_MOTO else '\n<a class="door" href="catalogo.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria e correia para Onix, HB20, Gol, Argo e mais.</span></a>'}
 </div></section>
 <section style="padding-top:0"><div class="wrap"><h2>Mais procuradas</h2><div class="grid">{"".join(card(p) for p in destaque)}</div>
 <p><a class="btn dark" href="catalogo.html">Ver todas as peças</a></p></div></section>
-<section><div class="wrap split"><div><h2>Moto</h2><div class="cats">{cats("moto")}</div></div><div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div></div></section>
+<section><div class="wrap split"><div><h2>Moto</h2><div class="cats">{cats("moto")}</div></div>{"" if SO_MOTO else f'<div><h2>Carro</h2><div class="cats">{cats("carro")}</div></div>'}</div></section>
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Escolha a peça</b><span>Busque pelo nome ou pelo modelo do seu veículo. Na dúvida, mande foto no WhatsApp.</span></li>
 <li><b>Feche pelo WhatsApp</b><span>O pedido vai pronto com peças, frete e total. Pague no Pix copia e cola.</span></li>
@@ -234,7 +234,7 @@ def catalogo(ps):
     corpo = f'''<section><div class="wrap"><h1>Peças de moto e carro</h1>
 <p class="note">Entrega por motoboy em toda a Grande Vitória. Não achou? Chame no WhatsApp.</p>
 <div class="filters"><input id="q" type="search" placeholder="Buscar peça, código ou modelo" aria-label="Buscar">
-<select id="tipo" aria-label="Moto ou carro"><option value="todos">Moto e carro</option><option value="moto">Moto</option><option value="carro">Carro</option></select>
+<select id="tipo" aria-label="Moto ou carro"><option value="todos">Moto e carro</option><option value="moto">Moto</option>{"" if SO_MOTO else '<option value="carro">Carro</option>'}</select>
 <select id="veic" aria-label="Seu veículo"></select></div>
 <div class="cats" id="cats" style="margin-bottom:16px">{botoes}</div>
 <div class="grid" id="grid">{"".join(card(p) for p in ps)}<p class="empty" id="none" hidden>Nenhuma peça encontrada com esses filtros. Mande o modelo e a peça no WhatsApp que a gente procura.</p></div>
@@ -285,8 +285,7 @@ def home_vitrine(artifact=False):
 <div class="chips"><span class="chip"><i></i>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}</span>{f'<span class="chip"><i></i>Frete grátis acima de {brl(GRATIS)}</span>' if GRATIS and FRETE_OK else ""}<span class="chip"><i></i>Pix copia e cola</span><span class="chip"><i></i>Troca garantida</span></div>
 </div></div>
 <section><div class="wrap split">
-<a class="door" href="pedido.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus, óleo, filtros e elétrica para CG, Biz, Pop, Bros, Factor, Fazer, NMax e mais.</span></a>
-<a class="door" href="pedido.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria, lâmpadas e correia para Onix, HB20, Gol, Argo, Strada e mais.</span></a>
+<a class="door" href="pedido.html?tipo=moto"><span class="eyebrow">Peças de</span><b>Moto</b><span>Relação, freio, bateria, vela, cabos, pneus, óleo, filtros e elétrica para CG, Biz, Pop, Bros, Factor, Fazer, NMax e mais.</span></a>{"" if SO_MOTO else '\n<a class="door" href="pedido.html?tipo=carro"><span class="eyebrow">Peças de</span><b>Carro</b><span>Pastilha e disco, filtros, velas, palhetas, bateria, lâmpadas e correia para Onix, HB20, Gol, Argo, Strada e mais.</span></a>'}
 </div></section>
 <section><div class="wrap"><h2>Como funciona</h2><ol class="steps">
 <li><b>Diga o que precisa</b><span>Peça, modelo e ano do veículo. Se tiver, mande foto da peça antiga.</span></li>
@@ -308,7 +307,7 @@ def pedido():
 <form id="pedidoform" style="display:grid;gap:12px">
 <fieldset><legend class="lbl">Peça para</legend>
 <label class="opt"><input type="radio" name="ptipo" id="ptMoto" value="moto" checked><span>Moto</span></label>
-<label class="opt"><input type="radio" name="ptipo" id="ptCarro" value="carro"><span>Carro</span></label></fieldset>
+{"" if SO_MOTO else '<label class="opt"><input type="radio" name="ptipo" id="ptCarro" value="carro"><span>Carro</span></label>'}</fieldset>
 <div class="field"><label class="lbl" for="pveic">Modelo e ano</label><input id="pveic" placeholder="Ex.: CG 160 Fan 2020, Onix 1.0 2018" required></div>
 <div class="field"><label class="lbl" for="ppeca">Peça</label><input id="ppeca" placeholder="Ex.: pastilha de freio dianteira, kit relação" required></div>
 <div class="field"><label class="lbl" for="pcid">Cidade</label><select id="pcid"><option value="">Escolha a cidade</option>{opts}</select></div>
@@ -427,6 +426,13 @@ def main():
     for p in ps: produto(p)
     for c in CFG["cidades"]: cidade(c, ps)
     extras(ps)
+    if SO_MOTO:
+        for f in DIST.glob("*.html"):
+            t = f.read_text(encoding="utf-8")
+            for a, z in (("Peça de moto e carro", "Peça de moto"), ("Peças de moto e carro", "Peças de moto"), ("peças de moto e carro", "peças de moto"),
+                         ("moto ou carro", "moto"), ("Moto ou carro", "Moto"), ("Moto e carro", "Moto"), ("moto e carro", "moto")):
+                t = t.replace(a, z)
+            f.write_text(t, encoding="utf-8")
     print(f"{len(ps)} produtos, {len(list(DIST.glob('*.html')))} páginas em {DIST}")
 
 if __name__ == "__main__":
