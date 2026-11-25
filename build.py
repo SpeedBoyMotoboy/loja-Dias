@@ -216,7 +216,8 @@ MOTOS = [("CG 160", "pecas-cg-160", ["CG 160"], "Honda"), ("CG 150", "pecas-cg-1
          ("Lander e Ténéré 250", "pecas-lander-tenere-250", ["Lander 250", "Ténéré 250"], "Yamaha"),
          ("Twister e CB 300", "pecas-twister-cb-300", ["Twister 250", "Twister 300", "CB 300"], "Honda"), ("PCX 150", "pecas-pcx-150", ["PCX 150"], "Honda")]
 # Foto de cada moto (25/11, pedido do Luan). Só entra foto com licença livre (Wikimedia Commons), com crédito em creditos.html.
-# Moto sem foto livre fica com o desenho até ter foto própria. NÃO usar foto de fabricante sem o Luan decidir.
+# Moto sem foto livre: o Luan escolheu (25/11, cartão de decisão) usar a foto oficial de divulgação da Honda e da Yamaha,
+# sabendo que o fabricante pode pedir para tirar. Se pedirem: apagar o .webp e a linha em FOTOS_OFICIAIS (o card volta ao desenho).
 # slug: (arquivo no Commons, autor, licença, link da licença)
 FOTOS_MOTO = {
     "cg-150": ("Moto_Honda_Flex_Titan_CG_150_Mix_Fuel_Injection_06_2009_Itu.jpg", "Mariordo (Mario Roberto Duran Ortiz)", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
@@ -229,6 +230,16 @@ FOTOS_MOTO = {
     "twister-cb-300": ("HONDA_CBX_250_TWISTER.jpg", "Al1997", "CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0"),
     "pcx-150": ("Honda_PCX_150_2012_03.jpg", "M.rJirapat", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt-br"),
 }
+# slug: (fabricante, modelo que aparece na foto, página de onde veio)
+FOTOS_OFICIAIS = {
+    "cg-160": ("Honda", "CG 160 Titan", "https://www.honda.com.br/motos/street/city/cg160-titan"),
+    "pop": ("Honda", "Pop 110i ES", "https://www.honda.com.br/motos/street/city/pop110i-es"),
+    "bros-160": ("Honda", "NXR 160 Bros", "https://www.honda.com.br/motos/adventure/trail/nxr160-bros"),
+    "bros-150": ("Honda", "NXR 150 Bros 2012 (foto de divulgação da época)", ""),
+    "xre-190": ("Honda", "XRE 190", "https://www.honda.com.br/motos/adventure/trail/xre-190"),
+    "fazer-150": ("Yamaha", "Fazer FZ15 (modelo atual)", "https://www.yamaha-motor.com.br/product/nova-fazer-fz15-abs-connected-770617"),
+    "crosser-150": ("Yamaha", "Crosser 150 Z", "https://www.yamaha-motor.com.br/product/crosser-z-abs-connected-770797"),
+}
 MOTO_DESENHO = ('<svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
                 '<circle cx="12" cy="32" r="8.500"/><circle cx="52" cy="32" r="8.500"/>'
                 '<path d="M12 32l9-8h12l5 8H24"/><path d="M52 32L44 12"/><path d="M40 10h7"/>'
@@ -238,16 +249,22 @@ MOTO_DESENHO = ('<svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stro
 def foto_moto(sl):
     """Caminho da foto da moto (img/motos/<slug>.webp) ou None. slug vem como 'pecas-cg-150'."""
     k = sl.replace("pecas-", "", 1)
-    return f"img/motos/{k}.webp" if (RAIZ / "img/motos" / f"{k}.webp").exists() and (k in FOTOS_MOTO or (RAIZ / "img/motos" / f"{k}.propria").exists()) else None
+    return f"img/motos/{k}.webp" if (RAIZ / "img/motos" / f"{k}.webp").exists() and (k in FOTOS_MOTO or k in FOTOS_OFICIAIS or (RAIZ / "img/motos" / f"{k}.propria").exists()) else None
 
 def creditos():
     linhas = "".join(
         f'<li><b>{e(n)}</b>: foto de {e(FOTOS_MOTO[k][1])}, <a href="https://commons.wikimedia.org/wiki/File:{quote(FOTOS_MOTO[k][0])}" rel="noopener nofollow">Wikimedia Commons</a>, '
         + (f'licença <a href="{FOTOS_MOTO[k][3]}" rel="noopener nofollow">{e(FOTOS_MOTO[k][2])}</a>.' if FOTOS_MOTO[k][3] else f'{e(FOTOS_MOTO[k][2].lower())}.') + '</li>'
         for n, sl, _, _ in MOTOS for k in [sl.replace("pecas-", "", 1)] if k in FOTOS_MOTO and foto_moto(sl))
+    oficiais = "".join(
+        f'<li><b>{e(n)}</b>: {e(FOTOS_OFICIAIS[k][1])}, foto de divulgação da {e(FOTOS_OFICIAIS[k][0])}'
+        + (f' (<a href="{FOTOS_OFICIAIS[k][2]}" rel="noopener nofollow">site do fabricante</a>)' if FOTOS_OFICIAIS[k][2] else "") + '.</li>'
+        for n, sl, _, _ in MOTOS for k in [sl.replace("pecas-", "", 1)] if k in FOTOS_OFICIAIS and foto_moto(sl))
     corpo = f'''<section><div class="wrap prose"><h1>Créditos das fotos</h1>
-<p>As fotos das motos na página inicial são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p>
+<h2>Fotos com uso liberado</h2>
+<p>Estas fotos são de fotógrafos que liberaram o uso no Wikimedia Commons. Elas foram recortadas e reduzidas para caber no site. As versões recortadas das fotos com licença CC BY-SA ficam disponíveis sob a mesma licença.</p>
 <ul>{linhas}</ul>
+{f"<h2>Fotos de divulgação dos fabricantes</h2><p>Estas fotos pertencem aos fabricantes das motos e aparecem aqui só para identificar o modelo. Se você representa o fabricante e quer que uma foto saia do site, chame no WhatsApp {e(CFG['whatsapp_exibir'])} que a gente tira.</p><ul>{oficiais}</ul>" if oficiais else ""}
 <p>As fotos servem só para você reconhecer o modelo. A Loja Dias não tem ligação com os fabricantes das motos. Honda e Yamaha são marcas dos seus donos.</p></div></section>'''
     pagina("creditos.html", "Créditos das fotos | Loja Dias Peças", "Autores e licenças das fotos de motos usadas no site da Loja Dias.", corpo)
 
