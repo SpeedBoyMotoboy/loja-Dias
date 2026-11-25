@@ -64,5 +64,7 @@
   "google_ads_label": "y90BCIDl-74dELz7l58_",
   "black_friday": true,
   "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ",
-  "dominio": "lojadias.com.br"
+  "dominio": "lojadias.com.br",
+  "pagar_na_entrega": true,
+  "_obs_pagar_na_entrega": "Luan aprovou em 25/11 01h48: cliente pode pagar o Pix ao motoboy na entrega. Para desligar, trocar para false."
 }
