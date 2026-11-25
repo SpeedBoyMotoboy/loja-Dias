@@ -206,6 +206,8 @@ def head(title, desc, path, extra_ld=None, artifact=False):
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
             f'<meta property="og:locale" content="pt_BR"><meta property="og:url" content="{canon}"><meta property="og:image" content="{URL}/img/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:site_name" content="Loja Dias Peças"><meta name="theme-color" content="#002776">'
+            '<link rel="icon" href="favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">'
+            '<link rel="apple-touch-icon" href="img/apple-touch-icon.png"><link rel="manifest" href="site.webmanifest">'
             f'{FONTS}<link rel="stylesheet" href="assets/style.css">{ld}')
     if artifact:
         return meta
@@ -772,6 +774,12 @@ def carrinho():
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
+<label class="opt" style="margin-top:10px"><input type="checkbox" id="nfq"><span>Preciso de nota fiscal (empresa)<small>Opcional. A nota vai para o e-mail da empresa.</small></span></label>
+<div id="nfbox" hidden>
+<div class="field"><label class="lbl" for="nfcnpj">CNPJ</label><input id="nfcnpj" inputmode="numeric" placeholder="00.000.000/0000-00" maxlength="18"></div>
+<div class="field"><label class="lbl" for="nfrazao">Razão social</label><input id="nfrazao" placeholder="Nome da empresa no CNPJ" maxlength="120" autocomplete="organization"></div>
+<div class="field"><label class="lbl" for="nfmail">E-mail para a nota</label><input id="nfmail" type="email" placeholder="financeiro@empresa.com.br" maxlength="120" autocomplete="email"></div>
+</div>
 {('<fieldset><legend class="lbl">Pagamento</legend>'
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
 '<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small>Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
@@ -879,6 +887,11 @@ def main():
     for c in CFG["cidades"]: cidade(c, ps)
     for n, sl, fams, marca in MOTOS_ATIVAS: pagina_moto(n, sl, fams, marca, ps)
     extras(ps)
+    # ícone do site (Luan 25/11): aba do navegador, atalho no celular e resultado do Google
+    shutil.copy(RAIZ / "favicon.ico", DIST / "favicon.ico")
+    (DIST / "site.webmanifest").write_text(json.dumps({"name": "Loja Dias Peças", "short_name": "Loja Dias", "start_url": "./", "display": "browser",
+        "background_color": "#002776", "theme_color": "#002776", "icons": [{"src": "img/icone-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "img/icone-512.png", "sizes": "512x512", "type": "image/png"}]}, ensure_ascii=False), encoding="utf-8")
     if CFG.get("dominio"):
         (DIST / "CNAME").write_text(CFG["dominio"] + "\n", encoding="utf-8")  # domínio próprio no GitHub Pages
     if SO_MOTO:

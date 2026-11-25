@@ -3,6 +3,10 @@
 (function(){
   const L = window.LOJA, P = L.produtos, C = L.config;
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  // CNPJ: confere os 2 dígitos verificadores (pedido de nota fiscal no carrinho)
+  const cnpjOk = c => { if(!/^\d{14}$/.test(c) || /^(\d)\1+$/.test(c)) return false;
+    const dv = n => { let s=0, w=n-7; for(let i=0;i<n;i++){ s += +c[i]*w--; if(w<2) w=9; } const r=s%11; return r<2?0:11-r; };
+    return dv(12)===+c[12] && dv(13)===+c[13]; };
   const brl = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
   let cart = {};
@@ -198,6 +202,14 @@
       else if(ent && !t.city) err = "Escolha a cidade para calcular a entrega.";
       else if(ent && !$("#addr").value.trim()) err = "Informe o endereço de entrega.";
       else if(!$("#name").value.trim()) err = "Informe seu nome.";
+      const nf = $("#nfq") && $("#nfq").checked;
+      if($("#nfbox")) $("#nfbox").hidden = !nf;
+      const nfCnpj = nf ? $("#nfcnpj").value.replace(/\D/g,"") : "", nfRazao = nf ? $("#nfrazao").value.trim().slice(0,120) : "", nfMail = nf ? $("#nfmail").value.trim().slice(0,120) : "";
+      if(!err && nf){
+        if(!cnpjOk(nfCnpj)) err = "CNPJ inválido. Confira os 14 números.";
+        else if(nfRazao.length < 3) err = "Informe a razão social da empresa.";
+        else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nfMail)) err = "Informe o e-mail para a nota.";
+      }
       $("#err").hidden = !err; $("#err").textContent = err;
       const send = $("#send"); send.setAttribute("aria-disabled", !!err);
       $("#pixbox").hidden = !!err || t.naEntrega;
@@ -211,6 +223,7 @@
         t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
+        nf?`*Nota fiscal (NF-e)*: CNPJ ${nfCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5")} · ${nfRazao} · ${nfMail}`:null,
         t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
       ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco}))};
