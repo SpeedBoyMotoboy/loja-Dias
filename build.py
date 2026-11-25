@@ -85,6 +85,17 @@ def preco_de_custo(custo, categoria, nome="", ml_medio=None):
         return None
     return p
 
+def _fsku(s):
+    return re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-")
+
+def fotos_de(sku, partes=""):
+    """Fotos reais baixadas em img/<sku>-N.webp. Kit usa a 1a foto de cada peca do kit."""
+    fs = sorted((RAIZ / "img").glob(f"{_fsku(sku)}-*.webp"), key=lambda f: int(f.stem.rsplit("-", 1)[1]))
+    out = [f"img/{f.name}" for f in fs]
+    for pt in [x for x in (partes or "").split(";") if x]:
+        out += [f"img/{f.name}" for f in sorted((RAIZ / "img").glob(f"{_fsku(pt)}-*.webp"))[:1]]
+    return out
+
 def carregar():
     ps = []
     for r in csv.DictReader(open(RAIZ / ("dados/produtos_exemplo.csv" if EXEMPLO else "dados/produtos.csv"), encoding="utf-8")):
@@ -99,6 +110,7 @@ def carregar():
         p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < LUCRO_MIN_CARRINHO)
         if p["preco"] is None:
             continue
+        p["fotos"] = fotos_de(p["sku"], r.get("partes", ""))
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
         ps.append(p)
@@ -147,7 +159,7 @@ def selo(p):
     return ""
 
 def card(p):
-    img = f'<img src="{e(p["imagem"])}" alt="{e(p["nome"])}" loading="lazy">' if p["imagem"] else icon(p["categoria"])
+    img = f'<img src="{p["fotos"][0]}" alt="{e(p["nome"])}" loading="lazy">' if p["fotos"] else icon(p["categoria"])
     fit = ", ".join(p["modelos"][:3]) + ("…" if len(p["modelos"]) > 3 else "")
     low = p["estoque"] <= 3
     return f'''<article class="card" data-sku="{e(p["sku"])}"><a class="ph" href="{p["url"]}" tabindex="-1"><span class="tag">{TIPOS[p["tipo"]]} · {CATS[p["categoria"]]}</span>{img}</a>
@@ -232,12 +244,13 @@ def catalogo(ps):
 
 def produto(p):
     pix = p["preco"] * (1 - CFG["desconto_pix"])
-    img = f'<img src="{e(p["imagem"])}" alt="{e(p["nome"])}">' if p["imagem"] else icon(p["categoria"])
+    img = f'<img id="fotomain" src="{p["fotos"][0]}" alt="{e(p["nome"])}">' if p["fotos"] else icon(p["categoria"])
+    thumbs = "".join(f'<button type="button" class="thumb" data-foto="{f}" aria-label="Foto {i+1}"><img src="{f}" alt="" loading="lazy"></button>' for i, f in enumerate(p["fotos"])) if len(p["fotos"]) > 1 else ""
     opts = "".join(f'<option value="{c["slug"]}">{e(c["nome"])}</option>' for c in CFG["cidades"])
     veic = "".join(f"<li>{e(v)}</li>" for v in p["veiculos"])
     wa = f'https://wa.me/{CFG["whatsapp"]}?text=' + re.sub(r" ", "%20", xesc(f"Olá! Essa peça serve no meu veículo? {p['nome']} ({p['sku']})"))
     corpo = f'''<div class="wrap"><nav class="crumbs" aria-label="Caminho"><a href="index.html">Início</a> › <a href="catalogo.html?tipo={p["tipo"]}">Peças de {TIPOS[p["tipo"]].lower()}</a> › <a href="catalogo.html?tipo={p["tipo"]}&cat={p["categoria"]}">{CATS[p["categoria"]]}</a></nav>
-<div class="pdp"><div class="ph">{img}</div>
+<div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
 <div class="buy"><span class="eyebrow">{e(p["marca"])} · cód. {e(p["sku"])}</span><h1>{e(p["nome"])}</h1>
 <div><div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix</div></div>
 <div class="stock{' low' if p['estoque']<=3 else ''}">{'Últimas %d unidades' % p['estoque'] if p['estoque']<=3 else 'Em estoque, pronta para entrega'}</div>
@@ -251,7 +264,7 @@ def produto(p):
 </div>'''
     ld = [{"@context": "https://schema.org", "@type": "Product", "name": p["nome"], "sku": p["sku"], "description": p["descricao"],
            "brand": {"@type": "Brand", "name": p["marca"]}, "category": f"{CATS[p['categoria']]} de {TIPOS[p['tipo']].lower()}",
-           **({"image": p["imagem"]} if p["imagem"] else {}),
+           **({"image": [f"{URL}/{f}" for f in p["fotos"]]} if p["fotos"] else {}),
            "offers": {"@type": "Offer", "price": f"{p['preco']:.2f}", "priceCurrency": "BRL", "url": f"{URL}/{p['url']}",
                       "availability": "https://schema.org/InStock" if p["estoque"] > 0 else "https://schema.org/OutOfStock",
                       "itemCondition": "https://schema.org/NewCondition", "seller": {"@type": "Organization", "name": CFG["nome_loja"]}}},
@@ -380,7 +393,7 @@ def extras(ps):
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
     itens = "".join(f'''<item><g:id>{xesc(p["sku"])}</g:id><g:title>{xesc(p["nome"])}</g:title><g:description>{xesc(p["descricao"])}</g:description>
-<g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{xesc(p['imagem'])}</g:image_link>" if p["imagem"] else ""}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
+<g:link>{URL}/{p["url"]}</g:link>{f"<g:image_link>{URL}/{p['fotos'][0]}</g:image_link>" if p["fotos"] else ""}{"".join(f"<g:additional_image_link>{URL}/{f}</g:additional_image_link>" for f in p["fotos"][1:10])}<g:availability>{"in_stock" if p["estoque"] > 0 else "out_of_stock"}</g:availability>
 <g:price>{p["preco"]:.2f} BRL</g:price><g:brand>{xesc(p["marca"])}</g:brand><g:mpn>{xesc(p["sku"])}</g:mpn><g:condition>new</g:condition>
 <g:google_product_category>{"Vehicles &amp; Parts &gt; Vehicle Parts &amp; Accessories &gt; Motor Vehicle Parts"}</g:google_product_category></item>
 ''' for p in ps)
@@ -397,6 +410,8 @@ def main():
     if DIST.exists():
         shutil.rmtree(DIST)
     (DIST / "assets").mkdir(parents=True)
+    if (RAIZ / "img").exists():
+        shutil.copytree(RAIZ / "img", DIST / "img")
     for f in ("style.css", "app.js", "conta.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
     global VITRINE

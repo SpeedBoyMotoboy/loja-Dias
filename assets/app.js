@@ -153,5 +153,9 @@
     pf.addEventListener("input", upd); pf.addEventListener("submit", e=>e.preventDefault()); upd();
   }
 
+  // galeria de fotos na pagina da peca
+  document.addEventListener("click", e => { const t = e.target.closest(".thumb"); if(!t) return;
+    $("#fotomain").src = t.dataset.foto; $$(".thumb").forEach(x=>x.setAttribute("aria-pressed", x===t)); });
+
   badge();
 })();

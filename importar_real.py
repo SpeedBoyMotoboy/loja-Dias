@@ -123,10 +123,10 @@ def main():
             preco = _noventa(custo + 8)
         kits.append({"sku": ksku, "nome": knome, "tipo": "moto", "categoria": "kit", "marca": "Loja Dias",
                      "veiculos": ";".join(modelos(apl)), "preco": f"{preco:.2f}", "custo": f"{custo:.2f}",
-                     "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "",
+                     "estoque": min(int(por[p]["estoque"]) for p in partes), "imagem": "", "partes": ";".join(partes),
                      "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
     saida = kits + saida
-    campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "estoque", "imagem", "descricao"]
+    campos = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "estoque", "imagem", "descricao", "partes"]
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=campos)
         w.writeheader()
