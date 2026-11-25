@@ -206,6 +206,8 @@ def head(title, desc, path, extra_ld=None, artifact=False):
             f'<link rel="canonical" href="{canon}"><meta property="og:title" content="{e(title)}">'
             f'<meta property="og:description" content="{e(desc)}"><meta property="og:type" content="website">'
             f'<meta property="og:locale" content="pt_BR"><meta property="og:url" content="{canon}"><meta property="og:image" content="{URL}/img/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:site_name" content="Loja Dias Peças"><meta name="theme-color" content="#002776">'
+            '<link rel="icon" href="favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">'
+            '<link rel="apple-touch-icon" href="img/apple-touch-icon.png"><link rel="manifest" href="site.webmanifest">'
             f'{FONTS}<link rel="stylesheet" href="assets/style.css">{ld}')
     if artifact:
         return meta
@@ -885,6 +887,11 @@ def main():
     for c in CFG["cidades"]: cidade(c, ps)
     for n, sl, fams, marca in MOTOS_ATIVAS: pagina_moto(n, sl, fams, marca, ps)
     extras(ps)
+    # ícone do site (Luan 25/11): aba do navegador, atalho no celular e resultado do Google
+    shutil.copy(RAIZ / "favicon.ico", DIST / "favicon.ico")
+    (DIST / "site.webmanifest").write_text(json.dumps({"name": "Loja Dias Peças", "short_name": "Loja Dias", "start_url": "./", "display": "browser",
+        "background_color": "#002776", "theme_color": "#002776", "icons": [{"src": "img/icone-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "img/icone-512.png", "sizes": "512x512", "type": "image/png"}]}, ensure_ascii=False), encoding="utf-8")
     if CFG.get("dominio"):
         (DIST / "CNAME").write_text(CFG["dominio"] + "\n", encoding="utf-8")  # domínio próprio no GitHub Pages
     if SO_MOTO:
