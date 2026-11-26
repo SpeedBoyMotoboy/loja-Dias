@@ -206,6 +206,19 @@ def _lampada(desc):
     pal = [w.upper() if re.search(r"\d", w) else {"pingao": "pingão", "ambar": "âmbar", "polos": "polos"}.get(w.lower(), w.lower()) for w in r.split()]
     return (" " + " ".join(pal)) if pal else ""
 
+def aco_titulo(marca, desc):
+    """Aço no título do kit relação, só onde o fabricante confirma (ver ficha.ACO_KIT): Cobreq, Cofap, Nakata e Riffel
+    Titanium = coroa e pinhão de aço 1045; nas outras linhas da Riffel só a coroa é confirmada."""
+    from ficha import relacao, ACO_KIT, _n as fn
+    m = fn(marca or "")
+    if m in ACO_KIT:
+        return "aço 1045"
+    if m == "RIFFEL":
+        r = relacao(desc)
+        return "aço 1045" if r and r["titanium"] else "coroa aço 1045"
+    return ""
+
+
 def spec_relacao(desc):
     """'KIT TRANSMISSAO ORING 428HPOX118L/44X15' -> dict(corrente='428H', elos=118, coroa=44, pinhao=15, retentor=True).
     25/11: antes 'C/RET', 'COM RETENTOR' e '428HOX' saíam como sem retentor; agora a regra fica em ficha.relacao."""
@@ -243,6 +256,9 @@ def nome_por_moto(nome_real, categoria, veiculos, fallback, primeiro=()):
         s = spec_relacao(desc)
         if s and s["retentor"] and tipo == "Kit relação":
             tipo = "Kit relação com retentor"  # 'C/RET', 'COM RETENTOR' e '428HOX' também são com retentor
+        aco = aco_titulo(marca, desc) if tipo.startswith("Kit relação") else ""
+        if aco:
+            tipo = tipo.replace("Kit relação", f"Kit relação {aco}", 1)  # Luan 26/11: o aço tem que aparecer no anúncio, não só na ficha
         if s:
             spec = f"Coroa {s['coroa']}, pinhão {s['pinhao']}, corrente {s['corrente']} com {s['elos']} elos, {'com retentor (O-ring)' if s['retentor'] else 'sem retentor'}"
     elif categoria == "ignicao" and tipo.startswith("Vela"):
