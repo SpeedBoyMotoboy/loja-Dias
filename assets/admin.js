@@ -87,7 +87,7 @@ function cartao(o) {
   <div class="pitens">${k.linhas.map(({ i, p, q }) => `<div class="pit"><span>${q}x ${esc(p ? p.nome : i.nome)}</span><b>${p ? brl(p.preco * q) : "?"}</b></div>`).join("")}
     <div class="preal"><span class="lbl">Comprar na Real</span>${real.map(r => `<div class="pit"><span><b class="mono">${esc(r.sku)}</b> · ${r.q}x ${esc(r.nome)}${r.desconhecida ? ` <em class="err">não está no catálogo</em>` : ""}</span><button class="btn ghost sm" data-copia="${esc(r.sku)}">Copiar</button></div>`).join("")}</div></div>
   <div class="ptot">Total <b>${brl(o.total)}</b>${k.confere ? ` <span class="stock">confere ✓</span>` : ` <span class="err">não bate com a loja (esperado ${k.conhecido ? brl(k.esperado) : "peça desconhecida"}). Confira antes.</span>`}</div>
-  ${k.ref ? `<div class="note">Indicado por <b>${esc(k.ref)}</b> · desconto ${brl(k.descInd)} · comissão ${brl(k.comissao)}</div>` : ""}
+  ${k.ref ? `<div class="note">Indicado por <b>${esc(k.ref)}</b> ${k.descInd ? `· desconto ${brl(k.descInd)} ` : ""}· comissão a pagar ${brl(k.comissao)}</div>` : ""}
   ${nf ? `<div class="pnf"><span class="lbl">Nota fiscal pedida</span>CNPJ <b class="mono">${esc(cnpj)}</b> <button class="btn ghost sm" data-copia="${esc(so(nf.cnpj))}">Copiar</button><br>${esc(nf.razao)}<br>${esc(nf.email)}</div>` : ""}
   <div class="petapas">${nx ? `<button class="btn" data-st="${nx}">${esc(ETAPAS[nx])}</button>` : ""}
     <select data-st-sel aria-label="Mudar etapa"><option value="">Outra etapa…</option>${Object.keys(ETAPAS).filter(s => s !== o.status).map(s => `<option value="${s}">${esc(ETAPAS[s])}</option>`).join("")}</select></div>

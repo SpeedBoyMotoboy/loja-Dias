@@ -27,14 +27,14 @@
   const refAtivo = () => { if(!IND) return null; let r = null; try{ r = JSON.parse(lsGet("dias-ref")||"null") }catch(e){}
     if(!r || !okRef(r.c) || !(Date.now()-r.t < IND.dias*864e5)) return null;
     return (meuRef && meuRef.c===r.c) ? null : r.c; };
-  const pctInd = IND ? Math.round(IND.desconto*100)+"%" : "";
+  const pctInd = IND ? Math.round(IND.desconto*100)+"%" : "", pctCom = IND ? Math.round(IND.comissao*100)+"%" : "";
   const linkCom = path => (C.site||location.origin) + "/" + (path||"") + (meuRef ? ((path||"").includes("?")?"&":"?") + "ref=" + meuRef.c : "");
   { const r = refAtivo(), top = document.querySelector("header.top");
-    if(r && top && !$("#lines")){ const f = document.createElement("div"); f.className = "indfaixa";
+    if(r && top && !$("#lines") && IND.desconto>0){ const f = document.createElement("div"); f.className = "indfaixa";
       f.innerHTML = `Indicação de <b></b>: ${pctInd} de desconto já aparece no carrinho`; f.querySelector("b").textContent = r; top.before(f); } }
   // botão "Compartilhar esta peça": vai pelo WhatsApp, com o link da pessoa quando ela já criou o dela
   document.addEventListener("click", e => { const b = e.target.closest("[data-share]"); if(!b) return;
-    const msg = (b.dataset.shareTxt||"") + (meuRef ? `. Pelo meu link tem ${pctInd} de desconto` : "") + ":\n" + linkCom(b.dataset.share);
+    const msg = (b.dataset.shareTxt||"") + (meuRef && IND.desconto>0 ? `. Pelo meu link tem ${pctInd} de desconto` : "") + ":\n" + linkCom(b.dataset.share);
     window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener"); });
 
   const ga = (nome, dados) => { try{ if(C.ga && window.gtag) gtag("event", nome, Object.assign({send_to:C.ga}, dados||{})); }catch(e){} };
@@ -162,13 +162,13 @@
       const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
       const desc = pix ? sub*C.desconto_pix : 0;
       const ref = refAtivo(), baseInd = ref ? items.filter(i=>i.p.ind).reduce((a,i)=>a+i.p.preco*i.q,0) : 0;
-      const descInd = Math.round(baseInd*(IND?IND.desconto:0)*100)/100;  // frete grátis continua contando pelo valor das peças sem o desconto
-      return {items,sub,desc,descInd,ref,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:Math.round((sub-desc-descInd+(frete||0))*100)/100};
+      const descInd = Math.round(baseInd*(IND?IND.desconto:0)*100)/100, comInd = Math.round(baseInd*(IND?IND.comissao:0)*100)/100;  // frete grátis continua contando pelo valor das peças sem o desconto
+      return {items,sub,desc,descInd,comInd,ref,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:Math.round((sub-desc-descInd+(frete||0))*100)/100};
     };
     const refresh = () => {
       const t = totals(); badge();
       lines.innerHTML = t.items.length ? t.items.map(i=>`
-        <div class="line"><a class="lfoto" href="${i.p.url}" tabindex="-1" aria-hidden="true">${i.p.foto?`<img src="${i.p.foto}" alt="" loading="lazy" width="64" height="64">`:""}</a><a class="lnome" href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind?` <small class="indtag">−${pctInd}</small>`:""}</b>
+        <div class="line"><a class="lfoto" href="${i.p.url}" tabindex="-1" aria-hidden="true">${i.p.foto?`<img src="${i.p.foto}" alt="" loading="lazy" width="64" height="64">`:""}</a><a class="lnome" href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind&&IND.desconto>0?` <small class="indtag">−${pctInd}</small>`:""}</b>
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
       $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
@@ -229,7 +229,7 @@
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`, tel?`WhatsApp: ${tel}`:null,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
-        t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}`:null,
+        t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}${t.comInd?` · comissão do indicador: ${brl(t.comInd)}`:""}`:null,
         `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
         nf?`*Nota fiscal (NF-e)*: CNPJ ${nfCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5")} · ${nfRazao} · ${nfMail}`:null,
@@ -269,7 +269,7 @@
       if(!meuRef) return;
       const link = linkCom(""), gr = C.frete_gratis_acima;
       $("#icod").textContent = meuRef.c; $("#ilink").value = link;
-      const msg = `Peça de moto com entrega no mesmo dia na Grande Vitória (pedido até ${C.corte_mesmo_dia}).\nPelo meu link você ganha ${pctInd} de desconto:\n${link}\nPix agora ou na entrega${gr?". Frete grátis acima de "+brl(gr):""}.`;
+      const msg = `Peça de moto com entrega no mesmo dia na Grande Vitória (pedido até ${C.corte_mesmo_dia}).\n${IND.desconto>0?`Pelo meu link você ganha ${pctInd} de desconto:`:"Compre pelo meu link:"}\n${link}\nPix agora ou na entrega${gr?". Frete grátis acima de "+brl(gr):""}.`;
       $("#imsg").value = msg; $("#izap").href = "https://wa.me/?text=" + encodeURIComponent(msg);
       if(navigator.share){ $("#imais").hidden = false; $("#imais").onclick = () => navigator.share({text: msg}).catch(()=>{}); }
     };

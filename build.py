@@ -725,11 +725,14 @@ def indique(ps):
     d, c, dias = pct(IND["desconto"]), pct(IND["comissao"]), IND.get("dias", 30)
     n = sum(1 for p in ps if p["ind"])
     ex = next((p for p in sorted(ps, key=lambda p: -p["preco"]) if p["ind"] and p["categoria"] == "kit" and p["preco"] < 120), None)
+    tem_d = IND["desconto"] > 0
     exemplo = (f'<p class="note">Exemplo: o cliente compra o {e(ex.get("titulo") or ex["nome"])} de {brl(ex["preco"])} pelo seu link. '
-               f'Ele paga {brl(ex["preco"] * (1 - IND["desconto"]))} e você ganha {brl(ex["preco"] * IND["comissao"])} no Pix.</p>') if ex else ""
+               + (f'Ele paga {brl(ex["preco"] * (1 - IND["desconto"]))} e você' if tem_d else "Você")
+               + f' ganha {brl(ex["preco"] * IND["comissao"])} no Pix.</p>') if ex else ""
+    ganha_cli = f" Quem compra pelo seu link ganha <b>{d} de desconto</b>." if tem_d else ""
     corpo = f'''<section><div class="wrap prose indique" style="max-width:720px">
 <h1>Indique e ganhe</h1>
-<p class="lead">Mande o seu link para os amigos e grupos de motoboy. Quem compra pelo seu link ganha <b>{d} de desconto</b>. Você ganha <b>{c} de comissão no Pix</b> em cada venda.</p>
+<p class="lead">Mande o seu link para os amigos e grupos de motoboy.{ganha_cli} Você ganha <b>{c} de comissão no Pix</b> em cada venda que vier pelo seu link.</p>
 <div class="panel" id="indbox">
 <h2>1. Crie o seu link</h2>
 <div class="field"><label class="lbl" for="inome">Seu nome</label><input id="inome" autocomplete="given-name" placeholder="Ex.: João"></div>
@@ -753,8 +756,8 @@ def indique(ps):
 </div>
 <h2>Como funciona</h2>
 <ol>
-<li>Quem abre o seu link fica com o desconto por {dias} dias naquele celular, em qualquer página do site.</li>
-<li>O desconto de {d} vale para {n} peças e kits (a maioria). No carrinho aparece quanto o cliente economizou.</li>
+<li>Quem abre o seu link fica marcado como indicação sua por {dias} dias naquele celular, em qualquer página do site.</li>
+<li>A comissão vale para {n} peças e kits (a maioria).{(" O cliente também ganha " + d + " de desconto nessas peças.") if tem_d else ""}</li>
 <li>O pedido chega na loja com o seu código. Depois que o cliente paga e recebe a peça, a loja manda {c} do valor dessas peças para a sua chave Pix.</li>
 <li>Não vale compra feita no seu próprio link.</li>
 </ol>
@@ -762,7 +765,7 @@ def indique(ps):
 <p class="note">Dúvida? Chame a loja no WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
 </div></section>'''
     pagina("indique.html", "Indique e ganhe | Loja Dias Peças",
-           f"Mande o seu link da Loja Dias: quem compra ganha {d} de desconto e você ganha {c} de comissão no Pix.", corpo)
+           f"Mande o seu link da Loja Dias e ganhe {c} de comissão no Pix em cada venda.", corpo)
 
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
