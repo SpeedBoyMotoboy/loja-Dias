@@ -44,8 +44,8 @@
   "fornecedor_principal": "Real Motopeças (ES)",
   "pix": {
     "chave": "+5527999165959",
-    "nome": "69 8 7 R A DA SILVA",
-    "cidade": "SERRA"
+    "nome": "LOJA DIAS PECAS",
+    "cidade": "VILA VELHA"
   },
   "fretes_confirmados": true,
   "cnpj": "46.178.859/0001-96",
@@ -65,8 +65,8 @@
   "black_friday": true,
   "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ",
   "dominio": "lojadias.com.br",
-  "pagar_na_entrega": true,
-  "_obs_pagar_na_entrega": "Luan aprovou em 25/11 01h48: cliente pode pagar o Pix ao motoboy na entrega. Para desligar, trocar para false.",
+  "pagar_na_entrega": false,
+  "_obs_pagar_na_entrega": "Luan 26/11 19h41: tirou o Pix na entrega (achou com cara de golpe). Só Pix na hora; a peça só sai depois que o Pix cai na conta da loja. Para voltar, true (a trava entrega_limite/entrega_sinal continua no config).",
   "indicacao": {
     "ligada": true,
     "desconto": 0,
