@@ -8,7 +8,7 @@
         && d.keys().hasOnly(['txid', 'criado', 'status', 'origem', 'cliente', 'entrega', 'pagamento', 'itens', 'sub', 'frete', 'desconto', 'total', 'ref', 'nf', 'uid'])
         && d.keys().hasAll(['txid', 'criado', 'status', 'origem', 'cliente', 'entrega', 'pagamento', 'itens', 'total'])
         && d.criado == request.time && d.status == 'novo'
-        && d.origem in ['site', 'whatsapp'] && d.entrega in ['motoboy', 'retirada'] && d.pagamento in ['pix', 'entrega']
+        && d.origem in ['site', 'whatsapp'] && d.entrega in ['motoboy', 'retirada'] && d.pagamento in ['pix']  // Luan 26/11: Pix na entrega desligado. Se religar (pagar_na_entrega true), voltar para ['pix', 'entrega']
         && d.cliente is map && d.cliente.keys().hasOnly(['nome', 'telefone', 'endereco', 'cidade'])
         && d.cliente.nome is string && d.cliente.nome.size() <= 80
         && txtOk(d.cliente, 'telefone', 20) && txtOk(d.cliente, 'endereco', 200) && txtOk(d.cliente, 'cidade', 30)

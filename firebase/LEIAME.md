@@ -8,5 +8,5 @@
 # Firebase: painel de pedidos (25/11)
 
 - `vendas.rules`: bloco que entra no firestore.rules da loja, antes de `match /{doc=**}`. Qualquer pessoa cria pedido novo; só a loja lê, muda etapa ou apaga.
-- `teste-vendas.mjs`: 28 testes no emulador (`npx firebase emulators:exec --only firestore "node teste-vendas.mjs"`).
+- `teste-vendas.mjs`: 29 testes no emulador (`npx firebase emulators:exec --only firestore "node teste-vendas.mjs"`).
 - No computador (localhost) o site usa o simulador do Firebase (auth 9099, firestore 8080) e não liga o App Check.

@@ -37,6 +37,7 @@ await t("loja anota", ok(updateDoc(doc(L, "vendas", "LDABCDEFGH123"), { obs: "tr
 await t("loja não muda total", no(updateDoc(doc(L, "vendas", "LDABCDEFGH123"), { total: 1 })));
 await t("loja não muda cliente", no(updateDoc(doc(L, "vendas", "LDABCDEFGH123"), { cliente: { nome: "x" } })));
 await t("nega etapa inventada", no(updateDoc(doc(L, "vendas", "LDABCDEFGH123"), { status: "qualquer" })));
+await t("nega Pix na entrega (desligado 26/11)", no(setDoc(doc(N, "vendas", "LDABCDEFGH135"), v("LDABCDEFGH135", { pagamento: "entrega" }))));
 await t("loja lança pedido do WhatsApp", ok(setDoc(doc(L, "vendas", "LDABCDEFGHWA0"), v("LDABCDEFGHWA0", { origem: "whatsapp" }))));
 await t("loja apaga pedido falso", ok(deleteDoc(doc(L, "vendas", "LDABCDEFGH132"))));
 await t("clientes continua fechado", no(getDoc(doc(N, "clientes", "uidA"))));
