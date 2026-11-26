@@ -82,6 +82,11 @@
   // Barra fixa: na página da peça mostra o preço e "Comprar agora"; com peça no carrinho, mostra o total e "Fechar pedido".
   const lim0 = Math.min(...C.cidades.map(c=>c.gratis_acima||C.frete_gratis_acima||Infinity));
   const limMax = Math.max(...C.cidades.map(c=>c.gratis_acima||C.frete_gratis_acima||0));
+  // Carro (Mesa Pauta 6/6B): pedido com peça de carro usa o frete de carro; peça grande ou carrinho pesado vai de Fiorino
+  const CR = C.carro || null;
+  const temCarro = its => !!CR && its.some(i=>i.p.tipo==="carro");
+  const vaiFiorino = its => !!CR && (its.some(i=>i.p.fiorino) || its.reduce((a,i)=>a+(i.p.kg||0)*i.q,0) > (CR.fiorino_kg||Infinity));
+  const itensCart = () => Object.entries(cart).map(([s,q])=>({p:P.find(p=>p.sku===s),q})).filter(i=>i.p);
   const subtotal = () => Object.entries(cart).reduce((a,[s,q])=>{ const p=P.find(x=>x.sku===s); return a+(p?p.preco*q:0); },0);
   function bar(){
     const el = $("#buybar"); if(!el || $("#lines")) return;
@@ -89,7 +94,8 @@
     const p = pd && P.find(x=>x.sku===pd.dataset.produto);
     let html = "", soCel = false;
     if(n){
-      const falta = !isFinite(lim0) ? "" : sub<lim0 ? `Faltam ${brl(lim0-sub)} para frete grátis` : sub>=limMax ? "Frete grátis" : "Frete grátis em Vitória, Vila Velha e Cariacica";
+      const its = itensCart(), fio = vaiFiorino(its), lc = temCarro(its) ? CR.gratis_acima : 0;
+      const falta = fio ? "vai de Fiorino" : lc ? (sub<lc ? `Faltam ${brl(lc-sub)} para frete grátis` : "Frete grátis") : !isFinite(lim0) ? "" : sub<lim0 ? `Faltam ${brl(lim0-sub)} para frete grátis` : sub>=limMax ? "Frete grátis" : "Frete grátis em Vitória, Vila Velha e Cariacica";
       html = `<div class="txt"><span>${n} ${n>1?"peças":"peça"} no carrinho${falta?" · "+falta:""}</span><b>${brl(sub)}</b></div><a class="btn" href="carrinho.html">Fechar pedido</a>`;
     } else if(p){
       soCel = true;
@@ -111,7 +117,7 @@
     const fillVeic = () => {
       const t = tipo.value, set = new Set();
       P.filter(p=>t==="todos"||p.tipo===t).forEach(p=>(p.fams||[]).forEach(m=>set.add(m)));
-      veic.innerHTML = `<option value="">Qual é a sua moto?</option>` + [...set].sort().map(m=>`<option>${m}</option>`).join("");
+      veic.innerHTML = `<option value="">${t==="carro"?"Qual é o seu carro?":t==="todos"&&P.some(p=>p.tipo==="carro")?"Qual é o seu veículo?":"Qual é a sua moto?"}</option>` + [...set].sort().map(m=>`<option>${m}</option>`).join("");
     };
     const apply = () => {
       const terms = norm(q.value.trim()).split(/\s+/).filter(Boolean), t=tipo.value, v=veic.value;
@@ -136,12 +142,19 @@
   const shipSel = $("#shipcity");
   if(shipSel){
     const out = $("#shipout");
+    const pd = $("[data-produto]"), pp = pd && P.find(x=>x.sku===pd.dataset.produto);
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
+      if(c && CR && pp && pp.tipo==="carro"){
+        out.innerHTML = pp.fiorino ? `Peça grande, vai de Fiorino: frete <b>${brl(CR.fiorino[c.slug])}</b>, sem frete grátis. Pix antes da entrega.`
+          : `Frete de carro: <b>${brl(CR.frete[c.slug])}</b> (grátis a partir de ${brl(CR.gratis_acima)}). Entrega no mesmo dia de segunda a sexta, para pedido até ${C.corte_mesmo_dia}.`;
+        return; }
       out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${(c.gratis_acima||C.frete_gratis_acima)?` (grátis a partir de ${brl(c.gratis_acima||C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia}: entrega até as ${C.entrega_ate} do mesmo dia. Depois disso, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
   }
 
   // carrinho
+  // catálogo aberto em ?tipo=carro: a escolha do topo marca Carro
+  if(new URLSearchParams(location.search).get("tipo")==="carro") $$(".veic a").forEach(el=>el.setAttribute("aria-current", el.textContent.startsWith("Carro") ? "true" : "false"));
   const lines = $("#lines");
   if(lines){
     $("#city").innerHTML = `<option value="">Escolha a cidade</option>` + C.cidades.map(c=>`<option value="${c.slug}">${c.nome}</option>`).join("");
@@ -150,20 +163,22 @@
       const sub = items.reduce((a,i)=>a+i.p.preco*i.q,0);
       const pix = true;
       // Mesa 25/11: peça cara (giro lento) só com Pix antecipado
-      const caro = C.antecipado && items.some(i=>i.p.preco>=C.antecipado), rEnt = $('input[name="pay"][value="entrega"]');
+      const carro = temCarro(items), fior = vaiFiorino(items);
+      const caro = (C.antecipado && items.some(i=>i.p.preco>=C.antecipado)) || fior, rEnt = $('input[name="pay"][value="entrega"]');
       if(rEnt){ rEnt.disabled = !!caro; if(caro && rEnt.checked){ rEnt.checked = false; const rAg = $('input[name="pay"][value="agora"]'); if(rAg) rAg.checked = true; }
-        const pe = $("#payentrega"); if(pe) pe.textContent = caro ? `Não vale para peça de ${brl(C.antecipado)} ou mais: ela é separada só para você, então o Pix é antes.` : (C.entrega_limite ? `Até ${brl(C.entrega_limite)} você paga tudo quando o motoboy chegar. Acima disso, paga ${brl(C.entrega_sinal)} de sinal no Pix agora e o resto na entrega. Às 11h45 a loja confirma seu endereço no WhatsApp.` : "Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja."); }
+        const pe = $("#payentrega"); if(pe) pe.textContent = fior ? "Não vale para entrega de Fiorino: o Pix é antes, depois que a loja confere a placa." : caro ? `Não vale para peça de ${brl(C.antecipado)} ou mais: ela é separada só para você, então o Pix é antes.` : (C.entrega_limite ? `Até ${brl(C.entrega_limite)} você paga tudo quando o motoboy chegar. Acima disso, paga ${brl(C.entrega_sinal)} de sinal no Pix agora e o resto na entrega. Às 11h45 a loja confirma seu endereço no WhatsApp.` : "Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja."); }
       const payEl = $('input[name="pay"]:checked'), naEntrega = !!(payEl && payEl.value==="entrega");
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
-      const lim = city ? (city.gratis_acima||C.frete_gratis_acima) : null;
-      const fidel = !!(window.LojaConta && window.LojaConta.freteFidelidade && window.LojaConta.freteFidelidade());
-      const gratis = fidel || !!(lim && sub>=lim);
-      const frete = ship==="retirada"||gratis?0:(city?city[ship]:null);
+      const lim = fior ? null : carro ? CR.gratis_acima : city ? (city.gratis_acima||C.frete_gratis_acima) : null;
+      const fidel = !fior && !!(window.LojaConta && window.LojaConta.freteFidelidade && window.LojaConta.freteFidelidade());
+      const gratis = !fior && (fidel || !!(lim && sub>=lim));
+      const base = city ? (fior ? CR.fiorino[city.slug] : carro ? CR.frete[city.slug] : city[ship==="retirada"?"normal":ship]) : null;
+      const frete = ship==="retirada"||gratis?0:base;
       const desc = pix ? sub*C.desconto_pix : 0;
       const ref = refAtivo(), baseInd = ref ? items.filter(i=>i.p.ind).reduce((a,i)=>a+i.p.preco*i.q,0) : 0;
       const descInd = Math.round(baseInd*(IND?IND.desconto:0)*100)/100, comInd = Math.round(baseInd*(IND?IND.comissao:0)*100)/100;  // frete grátis continua contando pelo valor das peças sem o desconto
-      return {items,sub,desc,descInd,comInd,ref,frete,ship,city,pix,gratis,fidel,lim,naEntrega,total:Math.round((sub-desc-descInd+(frete||0))*100)/100};
+      return {items,sub,desc,descInd,comInd,ref,frete,base,carro,fior,ship,city,pix,gratis,fidel,lim,naEntrega,total:Math.round((sub-desc-descInd+(frete||0))*100)/100};
     };
     const refresh = () => {
       const t = totals(); badge();
@@ -171,16 +186,24 @@
         <div class="line"><a class="lfoto" href="${i.p.url}" tabindex="-1" aria-hidden="true">${i.p.foto?`<img src="${i.p.foto}" alt="" loading="lazy" width="64" height="64">`:""}</a><a class="lnome" href="${i.p.url}">${i.p.nome}</a><b>${brl(i.p.preco*i.q)}${t.ref&&i.p.ind&&IND.desconto>0?` <small class="indtag">−${pctInd}</small>`:""}</b>
           <span class="qty"><button type="button" data-dec="${i.p.sku}" aria-label="Diminuir">−</button><span>${i.q}</span><button type="button" data-inc="${i.p.sku}" aria-label="Aumentar">+</button></span></div>`).join("")
         : `<p class="note">Seu carrinho está vazio. <a href="catalogo.html">Ver peças</a></p>`;
-      $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.city.normal):"escolha a cidade";
+      $("#feeN").textContent = t.gratis?"Grátis":t.city?brl(t.base):"escolha a cidade";
+      const sn = $("#shipNnota"), st = $("#shipNtit");
+      if(sn){ if(!sn.dataset.orig) sn.dataset.orig = sn.textContent;
+        sn.textContent = t.fior ? "Peça grande: entrega agendada, sem frete grátis" : t.carro ? `Seg. a sex., pedido até ${C.corte_mesmo_dia}. Frete grátis acima de ${brl(CR.gratis_acima)}` : sn.dataset.orig;
+        if(st && st.firstChild) st.firstChild.textContent = t.fior ? "Fiorino" : "Motoboy"; }
+      const pb = $("#placabox"); if(pb) pb.hidden = !t.carro;
+      const cn = $("#carronota"); if(cn){ cn.hidden = !t.carro;
+        cn.textContent = t.carro ? (t.fior ? "Peça grande vai de Fiorino, com entrega agendada no mesmo dia ou no seguinte. " : "Peça de carro: entrega no mesmo dia de segunda a sexta. Pedido de sábado chega na segunda até as 14h. ")
+          + "Você envia o pedido, a loja confere a peça pela placa no WhatsApp e só então manda o Pix." : ""; }
       $("#tot").innerHTML = `<span>Peças</span><span>${brl(t.sub)}</span>`
         + (t.desc?`<span>Desconto Pix</span><span>− ${brl(t.desc)}</span>`:"")
         + (t.descInd?`<span>Desconto indicação (${t.ref})</span><span>− ${brl(t.descInd)}</span>`:"")
-        + `<span>Entrega</span><span>${t.fidel?"Grátis (6º pedido)":t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
+        + `<span>Entrega${t.fior?" (Fiorino)":""}</span><span>${t.fidel?"Grátis (6º pedido)":t.gratis?"Grátis":t.frete===null?"—":brl(t.frete)}</span>`
         + `<span class="big">Total</span><span class="big">${brl(t.total)}</span>`;
       const ent = t.ship!=="retirada";
       $("#addrbox").hidden = !ent; $("#citybox").hidden = !ent;
       // meta do frete grátis: usa o valor da cidade escolhida; sem cidade, o menor valor (Vitória, Vila Velha, Cariacica)
-      const meta = $("#meta"), sug = $("#sugest"), alvo = t.lim || (isFinite(lim0)?lim0:0);
+      const meta = $("#meta"), sug = $("#sugest"), alvo = t.fior ? 0 : t.lim || (isFinite(lim0)?lim0:0);
       const mostra = ent && !t.fidel && alvo>0 && t.items.length>0;
       meta.hidden = !mostra; sug.hidden = true;
       if(mostra){
@@ -188,11 +211,11 @@
         meta.classList.toggle("ok", falta<=0);
         meta.innerHTML = falta>0
           ? `<span>Faltam ${brl(falta)} para o frete grátis${onde}</span><div class="trilho"><i style="width:${Math.max(6,Math.round(t.sub/alvo*100))}%"></i></div>`
-          : `<span>Frete grátis liberado${onde}${(t.city||t.sub>=limMax)?"":" (Vitória, Vila Velha e Cariacica)"}</span>`;
+          : `<span>Frete grátis liberado${onde}${(t.city||t.carro||t.sub>=limMax)?"":" (Vitória, Vila Velha e Cariacica)"}</span>`;
         if(falta>0){
           const ordem = ["freio","filtro","ignicao","transmissao","pneu","eletrica","cabo","acessorio"], rank = p => { const i = ordem.indexOf(p.categoria); return i<0?9:i; };  // o que mais se troca vem primeiro
           const no = new Set(t.items.map(i=>i.p.sku)), fams = new Set(t.items.flatMap(i=>i.p.fams||[])), cats = new Set(t.items.map(i=>i.p.categoria));
-          const cand = P.filter(p=>!no.has(p.sku) && p.foto && p.categoria!=="kit" && ((p.fams||[]).some(f=>fams.has(f)) || p.universal))
+          const cand = P.filter(p=>!no.has(p.sku) && p.foto && p.categoria!=="kit" && (!t.carro || p.tipo==="carro") && ((p.fams||[]).some(f=>fams.has(f)) || p.universal))
             .sort((a,b)=> (cats.has(a.categoria)-cats.has(b.categoria)) || (((b.fams||[]).some(f=>fams.has(f)))-((a.fams||[]).some(f=>fams.has(f)))) || (rank(a)-rank(b)) || (Math.abs(a.preco-falta)-Math.abs(b.preco-falta)));
           const pick = [], usados = new Set();
           for(const p of cand){ if(usados.has(p.categoria)) continue; pick.push(p); usados.add(p.categoria); if(pick.length===3) break; }
@@ -205,6 +228,7 @@
       else if(t.items.every(i=>i.p.addon) && t.sub < (C.frete_gratis_acima||0)) err = `Essas são peças de complemento. Junte com outra peça ou complete ${brl(C.frete_gratis_acima)}.`;
       else if(ent && !t.city) err = "Escolha a cidade para calcular a entrega.";
       else if(ent && !$("#addr").value.trim()) err = "Informe o endereço de entrega.";
+      else if(t.carro && !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(($("#placa").value||"").toUpperCase().replace(/[^A-Z0-9]/g,""))) err = "Informe a placa do carro (ex.: ABC1D23).";
       else if(!$("#name").value.trim()) err = "Informe seu nome.";
       else if($("#tel") && $("#tel").value.replace(/\D/g,"").length<10) err = "Informe seu WhatsApp com DDD.";
       const nf = $("#nfq") && $("#nfq").checked;
@@ -219,9 +243,9 @@
       const send = $("#send"); send.setAttribute("aria-disabled", !!err);
       // trava do Pix na entrega (Luan, 25/11): acima do limite, sinal no Pix agora e o resto na entrega
       const sinal = t.naEntrega && C.entrega_limite && C.entrega_sinal && t.total > C.entrega_limite ? Math.min(C.entrega_sinal, t.total) : 0;
-      $("#pixbox").hidden = !!err || (t.naEntrega && !sinal);
+      $("#pixbox").hidden = !!err || (t.naEntrega && !sinal) || t.carro;  // carro: Pix só depois de conferir a placa
       const pn = $("#pixnota"); if(pn) pn.textContent = sinal ? `Pague agora só o sinal de ${brl(sinal)}. O resto, ${brl(t.total-sinal)}, você paga no Pix quando o motoboy chegar. Depois envie o pedido com o comprovante.` : "Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.";
-      send.textContent = sinal ? "Enviar pedido e comprovante do sinal no WhatsApp" : t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
+      send.textContent = t.carro ? "Enviar pedido no WhatsApp" : sinal ? "Enviar pedido e comprovante do sinal no WhatsApp" : t.naEntrega ? "Enviar pedido no WhatsApp" : "Enviar pedido e comprovante no WhatsApp";
       if(err){ send.href = "#"; return; }
       const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8) + Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3).padEnd(3,"0");
       const tel = $("#tel") ? $("#tel").value.trim().slice(0,20) : "";
@@ -230,10 +254,12 @@
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
         t.ref?`Indicado por: ${t.ref}${t.descInd?` (desconto -${brl(t.descInd)})`:""}${t.comInd?` · comissão do indicador: ${brl(t.comInd)}`:""}`:null,
-        `Entrega: ${ent?"motoboy para "+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
+        `Entrega: ${ent?(t.fior?"Fiorino para ":"motoboy para ")+t.city.nome:"retirada"} = ${t.fidel?"grátis (6º pedido fidelidade)":t.gratis?"grátis":brl(t.frete||0)}`,
         ent?`Endereço: ${$("#addr").value.trim()}`:null,
+        t.carro?`Placa do carro: ${($("#placa").value||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}`:null,
+        t.fior?`Entrega de Fiorino (peça grande): Pix antecipado`:null,
         nf?`*Nota fiscal (NF-e)*: CNPJ ${nfCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5")} · ${nfRazao} · ${nfMail}`:null,
-        sinal ? `Pagamento: sinal de ${brl(sinal)} no Pix agora (comprovante anexo) + ${brl(t.total-sinal)} no Pix na entrega` : t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
+        t.carro ? `Pagamento: Pix ${t.naEntrega ? (sinal ? `(sinal de ${brl(sinal)} + ${brl(t.total-sinal)} na entrega)` : "na entrega") : `de ${brl(t.total)}`}, depois que a loja conferir a peça pela placa` : sinal ? `Pagamento: sinal de ${brl(sinal)} no Pix agora (comprovante anexo) + ${brl(t.total-sinal)} no Pix na entrega` : t.naEntrega ? `Pagamento: Pix na entrega (pago quando o motoboy chegar; a peça é entregue depois que o Pix cair)` : `Pagamento: Pix (copia e cola) R$ ${t.total.toFixed(2)}`, `*Total: ${brl(t.total)}*`].filter(Boolean).join("\n");
       send.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(msg)}`;
       ultimo = {txid, total:t.total, cidade: ent?t.city.slug:"retirada", pagamento: t.naEntrega?"entrega":"pix", ref:t.ref||"", itens:t.items.map(i=>({sku:i.p.sku,nome:i.p.nome,categoria:i.p.categoria,qtd:i.q,preco:i.p.preco})),
         sub:t.sub, frete:t.frete||0, desconto:Math.round(((t.desc||0)+(t.descInd||0))*100)/100,
