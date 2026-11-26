@@ -3,7 +3,7 @@
 // Tudo que veio do celular do cliente é NÃO confiável: todo texto passa por esc() e o total é recalculado pelo catálogo.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, connectFirestoreEmulator, collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, writeBatch, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config, P = window.LOJA.produtos, CID = C.cidades || [], IND = C.ind;
@@ -21,12 +21,32 @@ const okRef = r => typeof r === "string" && /^[A-Z0-9]{3,12}$/.test(r);
 
 const ETAPAS = { novo: "Novo", pix_caiu: "Pix caiu", saiu: "Saiu com motoboy", entregue: "Entregue", troca: "Troca", cancelado: "Cancelado" };
 const COR = { novo: "#C62828", pix_caiu: "#1565C0", saiu: "#EF6C00", entregue: "#2E7D32", troca: "#6A1B9A", cancelado: "#616161" };
-// próximo passo mais comum: Pix agora = novo > Pix caiu > saiu > entregue; Pix na entrega = novo > saiu > Pix caiu > entregue
-const proximo = o => o.pagamento === "entrega"
-  ? ({ novo: "saiu", saiu: "pix_caiu", pix_caiu: "entregue" })[o.status]
-  : ({ novo: "pix_caiu", pix_caiu: "saiu", saiu: "entregue" })[o.status];
+// próximo passo, pelo que já aconteceu com o pedido
+const pago = o => !!o.pago_em || o.status === "pix_caiu";
+const saiu = o => o.status === "saiu" || (Array.isArray(o.historico) && o.historico.some(h => h && h.s === "saiu"));
+const sinalDe = o => (o.pagamento === "entrega" && C.entrega_limite && C.entrega_sinal && Number(o.total) > C.entrega_limite) ? Math.min(C.entrega_sinal, Number(o.total)) : 0;
+function proximo(o) {
+  if (!["novo", "pix_caiu", "saiu"].includes(o.status)) return null;
+  if (o.entrega === "retirada") return pago(o) ? "entregue" : "pix_caiu";
+  if (o.pagamento !== "entrega") return !pago(o) ? "pix_caiu" : !saiu(o) ? "saiu" : "entregue";
+  return !saiu(o) ? "saiu" : !pago(o) ? "pix_caiu" : "entregue";
+}
+// o que o Luan faz agora, em uma frase
+function agora(o) {
+  const nx = proximo(o), t = brl(o.total), sn = sinalDe(o);
+  if (o.status === "entregue") return "Pronto. Pedido entregue.";
+  if (o.status === "cancelado") return "Pedido cancelado.";
+  if (o.status === "troca") return "Combine a troca com o cliente no WhatsApp.";
+  if (nx === "pix_caiu" && o.entrega === "retirada") return `Veja no banco se caiu o Pix de ${t}.`;
+  if (nx === "pix_caiu" && o.pagamento !== "entrega") return `Veja no app do banco se caiu o Pix de ${t}. Print não vale.`;
+  if (nx === "pix_caiu") return `Na porta, o cliente faz o Pix${sn ? ` do resto, ${brl(Number(o.total) - sn)}` : ` de ${t}`}. Só entregue quando cair no banco.`;
+  if (nx === "saiu") return (o.pagamento === "entrega" ? (sn ? `Veja se caiu o sinal de ${brl(sn)}. ` : "O cliente paga na entrega. ") : "Pix recebido. ") + "Compre as peças na Real e mande o motoboy.";
+  if (nx === "entregue") return o.entrega === "retirada" ? "Quando o cliente buscar, marque entregue." : "Quando o motoboy entregar, marque entregue.";
+  return "";
+}
+const BOTAO = { pix_caiu: "Caiu o Pix ✓", saiu: "Saiu com o motoboy", entregue: "Entregue ✓" };
 
-let VENDAS = [], filtro = "abertos", busca = "", primeira = true, som = false, actx = null, vistos = new Set(), parar = null;
+let VENDAS = [], filtro = "fazer", busca = "", primeira = true, som = false, actx = null, vistos = new Set(), parar = null;
 
 // ---------- conferência pelo catálogo ----------
 function conferir(o) {
@@ -72,33 +92,37 @@ const chip = s => `<span class="pchip" style="background:${COR[s] || "#616161"}"
 function cartao(o) {
   const k = conferir(o), cli = o.cliente || {}, tel = so(cli.telefone), real = codigosReal(k.linhas);
   const wa = tel.length >= 10 ? `https://wa.me/55${tel.replace(/^55(?=\d{10,11}$)/, "")}` : "";
-  const mapa = cli.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cli.endereco + ", " + ((CID.find(c => c.slug === cli.cidade) || {}).nome || "") + ", ES")}` : "";
-  const cidadeNome = o.entrega === "retirada" ? "Retirada na loja" : esc((CID.find(c => c.slug === cli.cidade) || {}).nome || cli.cidade || "");
-  const nx = proximo(o);
+  const cidN = (CID.find(c => c.slug === cli.cidade) || {}).nome || "";
+  const mapa = cli.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cli.endereco + ", " + cidN + ", ES")}` : "";
+  const onde = o.entrega === "retirada" ? "Vai buscar na loja" : `${esc(cli.endereco)}${cidN ? " · " + esc(cidN) : ""}`;
+  const nx = proximo(o), sn = sinalDe(o);
   const hist = Array.isArray(o.historico) ? o.historico.filter(h => h && typeof h === "object") : [];
   const nf = o.nf && typeof o.nf === "object" ? o.nf : null;
   const cnpj = nf ? so(nf.cnpj).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : "";
-  return `<article class="pcard" data-id="${esc(o.txid)}">
-  <div class="ptop">${chip(o.status)} <b class="mono">${esc(o.txid)}</b> <span class="note">${fmt(o.criado)}${o.origem === "whatsapp" ? " · lançado à mão" : ""}</span></div>
-  <div class="pcli"><b>${esc(cli.nome) || "(sem nome)"}</b>${tel ? ` · ${esc(cli.telefone)}` : ""}
-    <div class="pacts">${wa ? `<a class="btn wa sm" href="${wa}" target="_blank" rel="noopener">WhatsApp</a><a class="btn ghost sm" href="tel:${tel}">Ligar</a>` : ""}${mapa ? `<a class="btn ghost sm" href="${mapa}" target="_blank" rel="noopener">Mapa</a>` : ""}</div>
-    <div>${o.entrega === "retirada" ? "" : esc(cli.endereco) + " · "}${cidadeNome}</div>
-    <div>Pagamento: <b>${o.pagamento === "entrega" ? "Pix na entrega" : "Pix antes"}</b></div></div>
-  <div class="pitens">${k.linhas.map(({ i, p, q }) => `<div class="pit"><span>${q}x ${esc(p ? p.nome : i.nome)}</span><b>${p ? brl(p.preco * q) : "?"}</b></div>`).join("")}
-    <div class="preal"><span class="lbl">Comprar na Real</span>${real.map(r => `<div class="pit"><span><b class="mono">${esc(r.sku)}</b> · ${r.q}x ${esc(r.nome)}${r.desconhecida ? ` <em class="err">não está no catálogo</em>` : ""}</span><button class="btn ghost sm" data-copia="${esc(r.sku)}">Copiar</button></div>`).join("")}</div></div>
-  <div class="ptot">Total <b>${brl(o.total)}</b>${k.confere ? ` <span class="stock">confere ✓</span>` : ` <span class="err">não bate com a loja (esperado ${k.conhecido ? brl(k.esperado) : "peça desconhecida"}). Confira antes.</span>`}</div>
-  ${k.ref ? `<div class="note">Indicado por <b>${esc(k.ref)}</b> ${k.descInd ? `· desconto ${brl(k.descInd)} ` : ""}· comissão a pagar ${brl(k.comissao)}</div>` : ""}
-  ${nf ? `<div class="pnf"><span class="lbl">Nota fiscal pedida</span>CNPJ <b class="mono">${esc(cnpj)}</b> <button class="btn ghost sm" data-copia="${esc(so(nf.cnpj))}">Copiar</button><br>${esc(nf.razao)}<br>${esc(nf.email)}</div>` : ""}
-  <div class="petapas">${nx ? `<button class="btn" data-st="${nx}">${esc(ETAPAS[nx])}</button>` : ""}
-    <select data-st-sel aria-label="Mudar etapa"><option value="">Outra etapa…</option>${Object.keys(ETAPAS).filter(s => s !== o.status).map(s => `<option value="${s}">${esc(ETAPAS[s])}</option>`).join("")}</select></div>
-  <details class="pmais"><summary>Anotação e histórico</summary>
-    <textarea data-obs maxlength="500" rows="2" placeholder="Ex.: troca combinada para sexta">${esc(o.obs)}</textarea><button class="btn ghost sm" data-salva-obs>Salvar anotação</button>
-    <div class="note">${hist.map(h => `${esc(ETAPAS[h.s] || h.s)} · ${fmt(h.em)}`).join("<br>") || "Sem mudanças ainda."}</div></details>
+  const pagTxt = o.pagamento === "entrega" ? (sn ? `Sinal de ${brl(sn)} no Pix + resto na entrega` : "Pix na entrega") : "Pix antes de sair";
+  return `<article class="pcard st-${esc(o.status)}" data-id="${esc(o.txid)}">
+  <div class="ptop">${chip(o.status)}<span class="note">${fmt(o.criado)}</span></div>
+  <div class="pnome"><b>${esc(cli.nome) || "(sem nome)"}</b><b class="pval">${brl(o.total)}</b></div>
+  <div class="pitens">${k.linhas.map(({ i, p, q }) => `<div>${q}x ${esc(p ? p.nome : i.nome)}</div>`).join("")}</div>
+  ${k.confere ? "" : `<p class="palerta">⚠ O valor não bate com os preços da loja (o certo seria ${k.conhecido ? brl(k.esperado) : "?"}). Confira com o cliente antes.</p>`}
+  ${nf ? `<p class="pinfo">🧾 Pediu nota fiscal (veja em Detalhes)</p>` : ""}
+  <p class="pagora">${esc(agora(o))}</p>
+  ${nx ? `<button class="btn pbig" data-st="${nx}">${esc(BOTAO[nx])}</button>` : ""}
+  <div class="pacts">${wa ? `<a class="btn wa" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}${mapa ? `<a class="btn ghost" href="${mapa}" target="_blank" rel="noopener">Mapa</a>` : ""}</div>
+  <details class="pmais"><summary>Detalhes</summary>
+    <div class="pbloco"><span class="lbl">Cliente</span>${esc(cli.nome)}${tel ? ` · ${esc(cli.telefone)}` : ""}<br>${onde}<br>Pagamento: ${esc(pagTxt)}<br>Pedido <span class="mono">${esc(o.txid)}</span>${o.origem === "whatsapp" ? " (lançado à mão)" : ""}</div>
+    <div class="pbloco"><span class="lbl">Códigos para comprar na Real</span>${real.map(r => `<div class="pit"><span><b class="mono">${esc(r.sku)}</b> · ${r.q}x ${esc(r.nome)}${r.desconhecida ? ` <em class="err">não está no catálogo</em>` : ""}</span><button class="btn ghost sm" data-copia="${esc(r.sku)}">Copiar</button></div>`).join("")}</div>
+    ${k.ref ? `<div class="pbloco"><span class="lbl">Indicação</span>Código <b>${esc(k.ref)}</b> · comissão a pagar ${brl(k.comissao)}</div>` : ""}
+    ${nf ? `<div class="pbloco"><span class="lbl">Nota fiscal</span>CNPJ <b class="mono">${esc(cnpj)}</b> <button class="btn ghost sm" data-copia="${esc(so(nf.cnpj))}">Copiar</button><br>${esc(nf.razao)}<br>${esc(nf.email)}</div>` : ""}
+    <div class="pbloco"><span class="lbl">Anotação</span><textarea data-obs maxlength="500" rows="2" placeholder="Ex.: troca combinada para sexta">${esc(o.obs)}</textarea><button class="btn ghost sm" data-salva-obs>Salvar anotação</button></div>
+    <div class="pbloco"><span class="lbl">Mudar etapa à mão</span><select data-st-sel aria-label="Mudar etapa"><option value="">Escolha…</option>${Object.keys(ETAPAS).filter(x => x !== o.status).map(x => `<option value="${x}">${esc(ETAPAS[x])}</option>`).join("")}</select>
+      <div class="note">${hist.map(h => `${esc(ETAPAS[h.s] || h.s)} · ${fmt(h.em)}`).join("<br>")}</div></div>
+  </details>
 </article>`;
 }
 
 function listaReal() {
-  const abertos = VENDAS.filter(o => o.status === "novo" || o.status === "pix_caiu");
+  const abertos = VENDAS.filter(o => (o.status === "novo" || o.status === "pix_caiu") && !saiu(o));
   const soma = new Map();
   for (const o of abertos) for (const r of codigosReal(conferir(o).linhas)) {
     const x = soma.get(r.sku) || { ...r, q: 0 }; x.q += r.q; soma.set(r.sku, x);
@@ -108,30 +132,34 @@ function listaReal() {
   return { linhas, texto, n: abertos.length };
 }
 
+const GRUPOS = { fazer: ["novo", "pix_caiu", "saiu", "troca"], entregues: ["entregue"], cancelados: ["cancelado"] };
 function desenhar() {
-  const cont = s => VENDAS.filter(o => o.status === s).length;
-  const abertos = VENDAS.filter(o => !["entregue", "cancelado"].includes(o.status));
-  const abas = [["abertos", `Em aberto (${abertos.length})`], ...Object.keys(ETAPAS).map(s => [s, `${ETAPAS[s]} (${cont(s)})`]), ["todos", `Todos (${VENDAS.length})`]];
+  const de = g => VENDAS.filter(o => GRUPOS[g].includes(o.status));
+  const abas = [["fazer", `A fazer (${de("fazer").length})`], ["entregues", `Entregues (${de("entregues").length})`], ["cancelados", `Cancelados (${de("cancelados").length})`]];
   const b = busca.trim().toLowerCase();
-  let vis = filtro === "todos" ? VENDAS : filtro === "abertos" ? abertos : VENDAS.filter(o => o.status === filtro);
-  if (b) vis = vis.filter(o => [o.txid, o.cliente && o.cliente.nome, o.cliente && o.cliente.telefone, ...(o.itens || []).map(i => i && i.sku)].join(" ").toLowerCase().includes(b));
+  let vis = de(filtro).slice().reverse();  // a fazer: o mais antigo primeiro
+  if (filtro !== "fazer") vis.reverse();
+  if (b) vis = VENDAS.filter(o => [o.txid, o.cliente && o.cliente.nome, o.cliente && o.cliente.telefone, ...(o.itens || []).map(i => i && i.sku)].join(" ").toLowerCase().includes(b));
   const hoje = new Date().toDateString();
   const vendHoje = VENDAS.filter(o => o.criado && o.criado.toDate && o.criado.toDate().toDateString() === hoje && o.status !== "cancelado");
+  const novos = VENDAS.filter(o => o.status === "novo").length;
   const R = listaReal();
-  document.title = (cont("novo") ? `(${cont("novo")}) ` : "") + "Pedidos | Loja Dias";
+  document.title = (novos ? `(${novos}) ` : "") + "Pedidos | Loja Dias";
   box.innerHTML = `
-  <div class="pbar"><button class="btn ${som ? "ghost" : ""}" id="psom">${som ? "Aviso ligado ✓" : "Ligar aviso de pedido novo"}</button>
-    <button class="btn ghost" id="pnovo">+ Pedido do WhatsApp</button><a class="btn ghost" href="moderar.html">Avaliações</a></div>
-  <div class="presumo"><div><b>${vendHoje.length}</b><span>pedidos hoje</span></div><div><b>${brl(vendHoje.reduce((s, o) => s + (Number(o.total) || 0), 0))}</b><span>vendido hoje</span></div><div><b>${cont("novo")}</b><span>novos</span></div></div>
-  ${R.linhas.length ? `<details class="pcompra"><summary><b>Lista para comprar na Real</b> (${R.linhas.length} códigos, ${R.n} pedidos novos ou com Pix caiu)</summary>
-    ${R.linhas.map(r => `<div class="pit"><span><b class="mono">${esc(r.sku)}</b> · ${r.q}x ${esc(r.nome)}</span></div>`).join("")}
-    <button class="btn ghost sm" id="pcopialista">Copiar a lista</button></details>` : ""}
-  <div class="pabas">${abas.map(([k, t]) => `<button class="${k === filtro ? "on" : ""}" data-aba="${k}">${esc(t)}</button>`).join("")}</div>
-  <input id="pbusca" type="search" placeholder="Buscar nome, telefone, código" value="${esc(busca)}">
-  <div id="plista">${vis.map(cartao).join("") || `<p class="note">Nenhum pedido aqui.</p>`}</div>
-  <p class="note">Mostra os 300 pedidos mais novos. Pedido que o cliente mandou direto pelo WhatsApp (sem o carrinho do site) não entra sozinho: use "+ Pedido do WhatsApp".</p>
-  <button class="btn ghost" id="asair">Sair</button>`;
+  <div class="presumo"><div><b>${novos}</b><span>novos</span></div><div><b>${vendHoje.length}</b><span>pedidos hoje</span></div><div><b>${brl(vendHoje.reduce((s, o) => s + (Number(o.total) || 0), 0))}</b><span>vendido hoje</span></div></div>
+  ${som ? "" : `<button class="btn pbig ghost" id="psom">🔔 Tocar som quando chegar pedido</button>`}
+  <div class="pabas">${abas.map(([k, t]) => `<button class="${k === filtro && !b ? "on" : ""}" data-aba="${k}">${esc(t)}</button>`).join("")}</div>
+  <div id="plista">${vis.map(cartao).join("") || `<p class="pvazio">${b ? "Nada encontrado." : filtro === "fazer" ? "Nenhum pedido para fazer agora. 👍" : "Nenhum pedido aqui."}</p>`}</div>
+  <details class="pmais pfim"><summary>Mais opções</summary>
+    <input id="pbusca" type="search" placeholder="Buscar pelo nome, telefone ou código" value="${esc(busca)}">
+    <button class="btn ghost" id="pnovo">+ Lançar pedido que veio pelo WhatsApp</button>
+    ${R.linhas.length ? `<div class="pbloco"><span class="lbl">Lista para comprar na Real (pedidos ainda não enviados)</span>${R.linhas.map(r => `<div class="pit"><span><b class="mono">${esc(r.sku)}</b> · ${r.q}x ${esc(r.nome)}</span></div>`).join("")}<button class="btn ghost sm" id="pcopialista">Copiar a lista</button></div>` : ""}
+    <a class="btn ghost" href="moderar.html">Avaliações de clientes</a>
+    <p class="note">Você entrou como ${esc(auth.currentUser && auth.currentUser.email)}.</p>
+    <button class="btn ghost" id="asair">Sair</button>
+  </details>`;
   const bi = document.querySelector("#pbusca");
+  if (busca) document.querySelector(".pfim").open = true;
   bi.oninput = () => { busca = bi.value; const pos = bi.selectionStart; desenhar(); const n = document.querySelector("#pbusca"); n.focus(); n.setSelectionRange(pos, pos); };
   document.querySelector("#asair").onclick = () => signOut(auth);
   const cl = document.querySelector("#pcopialista"); if (cl) cl.onclick = e => copiar(R.texto, e.target);
@@ -145,7 +173,7 @@ async function copiar(t, el) {
 // ---------- mudar etapa ----------
 async function mudar(id, st) {
   const o = VENDAS.find(v => v.txid === id); if (!o || !ETAPAS[st] || st === o.status) return;
-  if (st === "pix_caiu" && !confirm("Confirmar que o Pix CAIU na conta da loja? (print não vale)")) return;
+  if (st === "pix_caiu" && !confirm("O Pix apareceu no app do banco da loja? (print do cliente não vale)")) return;
   if (st === "cancelado" && !confirm("Cancelar este pedido?")) return;
   const hist = (Array.isArray(o.historico) ? o.historico : []).concat([{ s: st, em: new Date() }]).slice(-40);
   const b = writeBatch(db), up = { status: st, historico: hist, atualizado: serverTimestamp() };
@@ -169,7 +197,7 @@ box.addEventListener("click", async e => {
   if (ob && card) { ob.textContent = "Salvando…";
     try { await setDoc(doc(db, "vendas", card.dataset.id), { obs: card.querySelector("[data-obs]").value.slice(0, 500), atualizado: serverTimestamp() }, { merge: true }); }
     catch (err) { alert("Não salvou."); } return; }
-  if (e.target.id === "psom") return ligarAviso();
+  if (e.target.closest("#psom")) return ligarAviso();
   if (e.target.id === "pnovo") return formManual();
 });
 box.addEventListener("change", e => { const s = e.target.closest("[data-st-sel]"); const card = e.target.closest(".pcard"); if (s && card && s.value) mudar(card.dataset.id, s.value); });
@@ -238,13 +266,50 @@ function formManual() {
 }
 
 // ---------- entrar e ouvir os pedidos ao vivo ----------
+// Login: janela do Google (popup). Se o celular bloquear a janela, tenta pela página inteira (redirect).
+// Navegador de dentro de app (WhatsApp, Instagram, Facebook) o Google recusa: pede para abrir no Chrome.
+const dentroDeApp = /; wv\)|FBAN|FBAV|Instagram|Line\/|WhatsApp|GSA\//i.test(navigator.userAgent);
+const prov = () => { const p = new GoogleAuthProvider(); p.setCustomParameters({ prompt: "select_account" }); return p; };
+const MSG = {
+  "auth/popup-closed-by-user": "A janela do Google fechou antes de terminar. Toque de novo em Entrar.",
+  "auth/cancelled-popup-request": "Toque só uma vez em Entrar e espere a janela do Google.",
+  "auth/network-request-failed": "Sem internet. Confira a conexão e tente de novo.",
+  "auth/unauthorized-domain": "Este endereço não está liberado no login. Abra por lojadias.com.br/admin.html.",
+  "auth/web-storage-unsupported": "Este navegador bloqueia o login. Abra no Chrome.",
+  "auth/operation-not-supported-in-this-environment": "Este navegador bloqueia o login. Abra no Chrome."
+};
+function telaEntrar(erro) {
+  const link = location.href.split("#")[0];
+  box.innerHTML = `<div class="plogin">
+    <h2>Entrar no painel</h2>
+    <p>Use a <b>conta Google da loja</b>. Outras contas não abrem os pedidos.</p>
+    ${dentroDeApp ? `<p class="palerta">Você abriu o link dentro de outro app. O Google não deixa entrar por aqui. Abra no Chrome:</p>
+      <a class="btn pbig" href="intent://${esc(link.replace(/^https?:\/\//, ""))}#Intent;scheme=https;package=com.android.chrome;end">Abrir no Chrome</a>
+      <button class="btn ghost pbig" id="acopia">Copiar o link</button>` : ""}
+    <button class="btn pbig" id="alogin">Entrar com Google</button>
+    ${erro ? `<p class="palerta">${esc(erro)}</p>` : ""}
+    <p class="note">Dica: depois de entrar, salve esta página na tela inicial do celular (Chrome › ⋮ › Adicionar à tela inicial). Você continua conectado.</p></div>`;
+  const c = document.querySelector("#acopia"); if (c) c.onclick = () => copiar(link, c);
+  document.querySelector("#alogin").onclick = async e => {
+    e.target.disabled = true; e.target.textContent = "Abrindo o Google…";
+    try { await signInWithPopup(auth, prov()); }
+    catch (err) {
+      if (err && err.code === "auth/popup-blocked") { try { return await signInWithRedirect(auth, prov()); } catch (e2) { err = e2; } }
+      telaEntrar(MSG[err && err.code] || `Não deu para entrar (${String(err && err.code || "erro").replace("auth/", "")}). Tente de novo ou mande um print para o Claude.`);
+    }
+  };
+}
+function telaSemAcesso(u) {
+  box.innerHTML = `<div class="plogin"><h2>Essa conta não é da loja</h2>
+    <p>Você entrou com <b>${esc(u && u.email)}</b>. Os pedidos só abrem com a conta Google da loja.</p>
+    <button class="btn pbig" id="atroca">Entrar com outra conta</button></div>`;
+  document.querySelector("#atroca").onclick = async () => { await signOut(auth); telaEntrar(); document.querySelector("#alogin").click(); };
+}
+getRedirectResult(auth).catch(err => telaEntrar(MSG[err && err.code] || "Não deu para entrar. Tente de novo."));
+
 onAuthStateChanged(auth, u => {
   if (parar) { parar(); parar = null; }
-  if (!u) {
-    box.innerHTML = `<p>Painel da loja. Entre com a conta Google da Loja Dias.</p><button class="btn" id="alogin">Entrar com Google</button>`;
-    document.querySelector("#alogin").onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-    return;
-  }
+  if (!u) return telaEntrar();
   box.innerHTML = `<p class="note">Carregando pedidos…</p>`;
   primeira = true; vistos = new Set();
   parar = onSnapshot(query(collection(db, "vendas"), orderBy("criado", "desc"), limit(300)), snap => {
@@ -254,12 +319,9 @@ onAuthStateChanged(auth, u => {
       vistos.add(ch.doc.id);
     }
     primeira = false;
-    // não redesenha enquanto o Luan escreve uma anotação
+    // não redesenha enquanto o Luan escreve uma anotação ou busca
     const ativo = document.activeElement;
     if (ativo && ativo.matches && ativo.matches("[data-obs]")) return;
     desenhar();
-  }, () => {
-    box.innerHTML = `<p class="err">Sem acesso. Entre com a conta Google da loja.</p><button class="btn ghost" id="asair">Sair</button>`;
-    document.querySelector("#asair").onclick = () => signOut(auth);
-  });
+  }, err => (err && err.code === "permission-denied") ? telaSemAcesso(u) : (box.innerHTML = `<p class="palerta">Não deu para carregar os pedidos. Confira a internet e recarregue a página.</p>`));
 });
