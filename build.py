@@ -25,6 +25,7 @@ GRATIS = CFG.get("frete_gratis_acima") or 0
 FIREBASE = CFG.get("firebase")  # login Google do cliente; vazio = sem conta
 NA_ENTREGA = CFG.get("pagar_na_entrega", False)
 ANTECIPADO = CFG.get("pix_antecipado_acima") or 10**9  # Mesa 25/11: peça cara (giro lento) só com Pix antecipado
+CARRO = {k: v for k, v in (CFG.get("carro") or {}).items() if not k.startswith("_")}  # Mesa Pauta 6/6B: frete e regras do carro
 GRATIS_TODAS = max([c.get("gratis_acima") or 0 for c in CFG["cidades"]] or [0])  # Pix ao motoboy na entrega; só liga com ok do Luan
 # Programa de indicação (25/11): link por pessoa (?ref=CODIGO). Desconto para quem compra e comissão para quem indica,
 # só nas peças em que ainda sobra o lucro mínimo depois dos dois (nunca prejuízo).
@@ -155,6 +156,10 @@ def carregar():
                  preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip(), r["nome"], float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None, r["tipo"].strip()), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
                  descricao=r["descricao"].strip())
         custo = float(r["custo"]) if (r.get("custo") or "").strip() else None
+        # carro (Mesa Pauta 6B): peso para o carrinho virar Fiorino acima de 20 kg; peça grande marcada fiorino=sim
+        try: p["peso_kg"] = float((r.get("peso_kg") or "0").replace(",", ".") or 0)
+        except ValueError: p["peso_kg"] = 0.0
+        p["fiorino"] = (r.get("fiorino") or "").strip().lower() in ("sim", "1", "true", "s", "x")
         p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < (LUCRO_MIN_CARRO if p["tipo"] == "carro" else LUCRO_MIN_CARRINHO))
         # participa da indicação: depois do desconto e da comissão, a peça ainda deixa o lucro mínimo
         p["ind"] = bool(IND and custo is not None and p["preco"] is not None
@@ -231,7 +236,7 @@ def topo():
     faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} <span class="demo2">(Serra e Viana: <span class="pc">acima de </span>R$ 89,90)</span></div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
-<nav class="nav" aria-label="Principal">{"" if SO_MOTO else f'<a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Carro</a>'}{f'<a class="indlink" href="indique.html">Indique e ganhe <em>{round(IND["comissao"]*100)}%</em></a>' if IND and not VITRINE else ""}
+<nav class="nav" aria-label="Principal">{f'<a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Carro</a>' if VITRINE and not SO_MOTO else ""}{f'<a class="indlink" href="indique.html">Indique e ganhe <em>{round(IND["comissao"]*100)}%</em></a>' if IND and not VITRINE else ""}
 <a href="entrega.html">Entrega</a><a href="index.html#duvidas">Dúvidas</a>{'<a id="contalink" href="minha-conta.html">Entrar</a>' if FIREBASE and not VITRINE else ""}
 {'<a class="cartlink" href="pedido.html">Fazer pedido</a>' if VITRINE else '<a class="cartlink" href="carrinho.html">Carrinho <b class="cartcount">0</b></a>'}</nav></div></header>{catbar()}'''
 
@@ -539,10 +544,19 @@ def catalogo(ps):
     pagina("catalogo.html", "Catálogo de peças de moto e carro | Loja Dias Peças",
            "Todas as peças de moto e carro da Loja Dias com preço, compatibilidade e entrega por motoboy na Grande Vitória.", corpo)
 
-def confianca(preco=0):
+def confianca(preco=0, carro=False, fiorino=False):
     """O que loja nova precisa mostrar perto do botão: quem entrega, o que acontece se não servir, garantia e CNPJ."""
-    itens = [f"Entrega pelo motoboy da loja. Pedido até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']}"]
-    if NA_ENTREGA and preco >= ANTECIPADO:
+    if fiorino:
+        itens = ["Peça grande: vai de Fiorino, com entrega agendada no mesmo dia ou no seguinte",
+                 "Pagamento no Pix antes da entrega, depois que a loja confere a placa do carro"]
+    elif carro:
+        itens = [f"Entrega pelo motoboy da loja de segunda a sexta. Pedido até {CFG['corte_mesmo_dia']} chega no mesmo dia",
+                 "A loja confere a peça pela placa do carro no WhatsApp antes do Pix"]
+    else:
+        itens = [f"Entrega pelo motoboy da loja. Pedido até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']}"]
+    if fiorino:
+        pass
+    elif NA_ENTREGA and preco >= ANTECIPADO:
         itens.append(f"Peça acima de {brl(ANTECIPADO)}: pagamento no Pix antes da entrega, porque ela é separada só para você")
     elif NA_ENTREGA:
         itens.append("Se preferir, pague o Pix quando o motoboy chegar")
@@ -600,28 +614,31 @@ def produto(p, ps=()):
     opts = "".join(f'<option value="{c["slug"]}">{e(c["nome"])}</option>' for c in CFG["cidades"])
     veic = "".join(f"<li>{e(veiculo_legivel(v))}</li>" for v in p["veiculos"])
     zap = lambda t: f'https://wa.me/{CFG["whatsapp"]}?text=' + quote(t)
-    wa_compra = zap(f"Olá! Quero comprar: {p['nome']} (cód. {p['sku']}) por {brl(p['preco'])}. Minha moto é: ")
-    wa_serve = zap(f"Olá! Essa peça serve na minha moto? {p['nome']} (cód. {p['sku']}). Minha moto é: ")
+    carro, fior = p["tipo"] == "carro", bool(p.get("fiorino"))
+    seu = "Meu carro (modelo, ano e placa) é: " if carro else "Minha moto é: "
+    wa_compra = zap(f"Olá! Quero comprar: {p['nome']} (cód. {p['sku']}) por {brl(p['preco'])}. {seu}")
+    wa_serve = zap(f"Olá! Essa peça serve {'no meu carro' if carro else 'na minha moto'}? {p['nome']} (cód. {p['sku']}). {seu}")
     junto = leve_junto(p, ps)
-    falta = GRATIS - p["preco"] if GRATIS and p["preco"] < GRATIS else 0
-    junto_html = (f'<section class="junto"><h2>Leve junto</h2><p class="note">{("Faltam " + brl(falta) + " para o frete grátis. ") if falta else ""}Servem na mesma moto e vão na mesma entrega.</p><div class="grid">{"".join(card(x) for x in junto)}</div></section>' if junto else "")
+    g = 0 if fior else (CARRO.get("gratis_acima", 0) if carro else GRATIS)
+    falta = g - p["preco"] if g and p["preco"] < g else 0
+    junto_html = (f'<section class="junto"><h2>Leve junto</h2><p class="note">{("Faltam " + brl(falta) + " para o frete grátis. ") if falta else ""}Servem {"no mesmo carro" if carro else "na mesma moto"} e vão na mesma entrega.</p><div class="grid">{"".join(card(x) for x in junto)}</div></section>' if junto else "")
     motos_links = "".join(f'<a href="{sl}.html">Todas as peças para {e(n)}</a>' for n, sl, fams, _ in MOTOS_ATIVAS if set(fams) & set(p.get("fams", [])))
     desc = p["descricao"]
     corpo = f'''<div class="wrap"><nav class="crumbs" aria-label="Caminho"><a href="index.html">Início</a> › <a href="catalogo.html?tipo={p["tipo"]}">Peças de {TIPOS[p["tipo"]].lower()}</a> › <a href="catalogo.html?tipo={p["tipo"]}&cat={p["categoria"]}">{CATS[p["categoria"]]}</a></nav>
 <div class="pdp"><div><div class="ph">{img}</div>{f'<div class="thumbs">{thumbs}</div>' if thumbs else ""}</div>
 <div class="buy" data-produto="{e(p["sku"])}"><h1>{e(p.get("titulo") or p["nome"])}</h1>{'<a class="avlink" href="#avaliacoes">Avaliações de clientes</a>' if AVAL else ""}
 {f'<p class="specline">{e(p.get("conteudo") or p["spec"])}</p>' if p.get("spec") or p.get("conteudo") else ""}
-<div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{(" antecipado" if p["preco"] >= ANTECIPADO else ", agora ou na entrega") if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
+<div class="pricebox">{f'<div class="de">Separado: <s>{brl(p["separado"])}</s></div>' if kit and p["economia"] > 0 else ""}<div class="bigprice">{brl(p["preco"])}</div><div class="pixprice">no Pix{(" antecipado" if p["preco"] >= ANTECIPADO or fior else ", agora ou na entrega") if NA_ENTREGA else ""}</div>{f'<div class="eco">Você economiza {brl(p["economia"])}</div>' if kit and p["economia"] > 0 else ""}</div>
 {f'<div class="stock low">Últimas {p["estoque"]} unidades</div>' if p["estoque"] <= 3 else ""}
-<p class="corte" data-corte>Pedido até {CFG["corte_mesmo_dia"]} chega hoje até as {CFG["entrega_ate"]}.</p>
+{f'<p class="corte">Peça de carro: entrega no mesmo dia de segunda a sexta, para pedido até {CFG["corte_mesmo_dia"]}. Pedido de sábado chega na segunda até as 14h.</p>' if carro else f'<p class="corte" data-corte>Pedido até {CFG["corte_mesmo_dia"]} chega hoje até as {CFG["entrega_ate"]}.</p>'}
 {'<p class="note">Peça de complemento: vai junto com outra peça do pedido.</p>' if p["addon"] else ""}
 <div class="cta"><button class="btn big" type="button" data-buy="{e(p["sku"])}">Comprar agora</button>
 <a class="btn wa" href="{wa_compra}" target="_blank" rel="noopener">Comprar pelo WhatsApp</a>
 <button class="btn ghost" type="button" data-add="{e(p["sku"])}">Adicionar ao carrinho</button></div>
 <div class="ship"><label class="lbl" for="shipcity">Frete para</label><select id="shipcity">{opts}</select><div id="shipout" class="note"></div></div>
-{confianca(p["preco"])}
+{confianca(p["preco"], carro, fior)}
 {no_kit(p)}
-<a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande o modelo e o ano no WhatsApp</a>
+<a class="serve" href="{wa_serve}" target="_blank" rel="noopener">Não sabe se serve? Mande {"a placa do carro" if carro else "o modelo e o ano"} no WhatsApp</a>
 {f'<button class="btn ghost share" type="button" data-share="{e(p["url"])}" data-share-txt="{e(p["nome"] + " por " + brl(p["preco"]) + ", entrega no mesmo dia na Grande Vitória")}">Compartilhar esta peça no WhatsApp</button>' if IND else ""}
 </div></div>
 {kit_lista(p) if kit else ""}
@@ -644,6 +661,9 @@ def produto(p, ps=()):
     pagina(p["url"], f"{p['nome']} | {brl(p['preco'])} com entrega na Grande Vitória",
            f"{p['nome']} por {brl(p['preco'])} no Pix. Serve em {', '.join(p['modelos'][:3])}. Entrega por motoboy hoje em Vitória, Vila Velha, Serra, Cariacica e Viana.",
            corpo, ld, js='<script type="module" src="assets/avaliacoes.js"></script>' if AVAL else "")
+    if carro:  # na peça de carro, a escolha do topo fica em Carro
+        f = DIST / p["url"]
+        f.write_text(f.read_text(encoding="utf-8").replace(seletor_veiculo("moto"), seletor_veiculo("carro"), 1), encoding="utf-8")
 
 def avaliacoes_html(p):
     """Avaliações de clientes (estrelas, texto, fotos e vídeo). Conteúdo vem do Firebase só depois de aprovado em moderar.html."""
@@ -805,10 +825,11 @@ def carrinho():
     corpo = f'''<div class="wrap cartpage"><div class="panel"><h1 style="font-size:36px">Seu pedido</h1><div id="lines"></div><div id="meta" class="meta" hidden></div><div id="sugest" class="sugest" hidden></div><div class="tot" id="tot"></div></div>
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
-<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span>Motoboy<small>Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
+<label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span id="shipNtit">Motoboy<small id="shipNnota">Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
 <label class="opt"><input type="radio" name="ship" id="shipR" value="retirada"><span>Retirar<small>Combinar pelo WhatsApp</small></span><em>R$ 0,00</em></label></fieldset>
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
+<div class="field" id="placabox" hidden><label class="lbl" for="placa">Placa do carro</label><input id="placa" placeholder="ABC1D23" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false"><small class="note">A loja confere pela placa se a peça serve antes de você pagar.</small></div>
 <div class="field"><label class="lbl" for="name">Seu nome</label><input id="name" placeholder="Nome para a entrega" autocomplete="name"></div>
 <div class="field"><label class="lbl" for="tel">Seu WhatsApp</label><input id="tel" type="tel" inputmode="tel" placeholder="(27) 99999-9999" maxlength="20" autocomplete="tel"></div>
 <label class="opt" style="margin-top:10px"><input type="checkbox" id="nfq"><span>Preciso de nota fiscal (empresa)<small>Opcional. A nota vai para o e-mail da empresa.</small></span></label>
@@ -820,6 +841,7 @@ def carrinho():
 {('<fieldset><legend class="lbl">Pagamento</legend>'
 '<label class="opt"><input type="radio" name="pay" value="agora" checked><span>Pix agora<small>O código copia e cola aparece aqui com o valor exato</small></span></label>'
 '<label class="opt"><input type="radio" name="pay" value="entrega"><span>Pix na entrega<small id="payentrega">Você paga o Pix quando o motoboy chegar. Ele entrega a peça assim que o Pix cair na conta da loja.</small></span></label></fieldset>') if NA_ENTREGA else '<div class="field"><span class="lbl">Pagamento</span><span>Pix. O código copia e cola aparece aqui com o valor exato.</span></div>'}
+<p class="note carronota" id="carronota" hidden></p>
 <p class="err" id="err" hidden></p>
 <div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note" id="pixnota">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
 <a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
@@ -977,6 +999,7 @@ def extras(ps):
 ''' for p in ps)
     (DIST / "feed-google.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>{xesc(CFG["nome_loja"])}</title><link>{URL}/</link><description>Peças de moto e carro</description>\n{itens}</channel></rss>\n', encoding="utf-8")
     pub = [dict({k: p[k] for k in ("sku", "nome", "nome_real", "tipo", "categoria", "marca", "veiculos", "modelos", "preco", "url", "addon", "fams", "universal", "ind")},
+                **({"kg": p["peso_kg"]} if p.get("peso_kg") else {}), **({"fiorino": True} if p.get("fiorino") else {}),
                 foto=p["fotos"][0] if p["fotos"] else "", **({"partes": p.get("partes", [])} if p["categoria"] == "kit" else {})) for p in ps]
     cfg = {k: CFG[k] for k in ("whatsapp", "desconto_pix", "pix", "corte_mesmo_dia", "entrega_ate", "cidades")}
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
@@ -986,6 +1009,8 @@ def extras(ps):
     cfg["antecipado"] = ANTECIPADO if ANTECIPADO < 10**9 else 0
     cfg["entrega_limite"] = CFG.get("entrega_limite", 0); cfg["entrega_sinal"] = CFG.get("entrega_sinal", 0)
     cfg["site"] = URL
+    if CFG.get("carro"):
+        cfg["carro"] = {k: v for k, v in CFG["carro"].items() if not k.startswith("_")}
     if IND:
         cfg["ind"] = {"desconto": IND["desconto"], "comissao": IND["comissao"], "dias": IND.get("dias", 30)}
     if FIREBASE:
