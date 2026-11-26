@@ -80,6 +80,6 @@
   "entrega_limite": 150,
   "entrega_sinal": 15,
   "_obs_trava_entrega": "Luan escolheu 'Sim, com trava' (Mesa 25/11 23h52 UTC): Pix na entrega até R$ 150; acima, sinal de R$ 15 no Pix na hora do pedido e o resto na entrega; loja confirma endereço pelo WhatsApp às 11h45.",
-  "login_email": false,
+  "login_email": true,
   "_obs_login_email": "Login por link no e-mail (sem senha). Só ligar (true) depois de ativar Email/Senha + Link de e-mail no Firebase Authentication do loja-dias-7163."
 }
