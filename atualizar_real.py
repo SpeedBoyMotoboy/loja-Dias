@@ -39,7 +39,7 @@ def gravar(arq, linhas):
 
 def preco(r, custo):
     ml = float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None
-    return preco_de_custo(custo, r["categoria"], r["nome"], ml)
+    return preco_de_custo(custo, r["categoria"], r["nome"], ml, r.get("tipo") or "moto")
 
 
 def main():

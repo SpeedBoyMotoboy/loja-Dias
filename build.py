@@ -76,6 +76,12 @@ ISCA_PALAVRAS = ["oleo", "camara", "vela", "pastilha", "relacao cg 160", "kit re
 MARGEM_MIN = 0.20
 TETO_FOLGA = 10.0
 LUCRO_MIN_CARRINHO = 8.0  # peça com lucro menor só vai junto com outra (ou carrinho >= frete grátis)
+# Carro (Mesa Pauta 6, 26/11/2026, decisão do Luan): carro é mais caro que moto. Margem sobre o custo da Laguna,
+# mínimo 50%, sem item-isca; teto = média da mesma marca + R$ 15; lucro mínimo de R$ 15 por pedido de carro.
+MARGEM_CARRO = [(30, 2.0), (100, 1.75), (250, 1.55), (float("inf"), 1.50)]
+MARGEM_MIN_CARRO = 0.50
+TETO_FOLGA_CARRO = 15.0
+LUCRO_MIN_CARRO = 15.0
 
 def _n(s):
     return unicodedata.normalize("NFD", s or "").encode("ascii", "ignore").decode().lower()
@@ -91,14 +97,18 @@ def _noventa(x):
     n = math.floor(x)
     return round(n + 0.90 if x <= n + 0.90 else n + 1.90, 2)
 
-def preco_de_custo(custo, categoria, nome="", ml_medio=None):
-    f = ISCA if eh_isca(nome) else next(m for lim, m in MARGEM if custo <= lim)
+def preco_de_custo(custo, categoria, nome="", ml_medio=None, tipo="moto"):
+    carro = tipo == "carro"
+    if carro:
+        f = next(m for lim, m in MARGEM_CARRO if custo <= lim)
+    else:
+        f = ISCA if eh_isca(nome) else next(m for lim, m in MARGEM if custo <= lim)
     p = max(_noventa(custo * f), 9.90)
     if ml_medio:
-        teto = ml_medio + TETO_FOLGA
+        teto = ml_medio + (TETO_FOLGA_CARRO if carro else TETO_FOLGA)
         if p > teto:
             p = _noventa(teto - 1) if _noventa(teto - 1) <= teto else round(teto, 2)
-    if p < custo * (1 + MARGEM_MIN):
+    if p < custo * (1 + (MARGEM_MIN_CARRO if carro else MARGEM_MIN)):
         return None
     return p
 
@@ -142,10 +152,10 @@ def carregar():
         veic = [v.strip() for v in r["veiculos"].split(";") if v.strip()]
         p = dict(sku=r["sku"].strip(), nome=r["nome"].strip(), tipo=r["tipo"].strip(), categoria=r["categoria"].strip(),
                  marca=r["marca"].strip(), veiculos=veic, modelos=sorted({re.sub(r"\s*\(.*?\)", "", v) for v in veic}),
-                 preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip(), r["nome"], float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
+                 preco=float(r["preco"]) if r.get("preco", "").strip() else preco_de_custo(float(r["custo"]), r["categoria"].strip(), r["nome"], float(r["ml_medio"]) if (r.get("ml_medio") or "").strip() else None, r["tipo"].strip()), estoque=int(r["estoque"] or 0), imagem=r["imagem"].strip(),
                  descricao=r["descricao"].strip())
         custo = float(r["custo"]) if (r.get("custo") or "").strip() else None
-        p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < LUCRO_MIN_CARRINHO)
+        p["addon"] = bool(custo is not None and p["preco"] is not None and p["preco"] - custo < (LUCRO_MIN_CARRO if p["tipo"] == "carro" else LUCRO_MIN_CARRINHO))
         # participa da indicação: depois do desconto e da comissão, a peça ainda deixa o lucro mínimo
         p["ind"] = bool(IND and custo is not None and p["preco"] is not None
                         and p["preco"] - custo - (IND["desconto"] + IND["comissao"]) * p["preco"] >= IND.get("lucro_min", LUCRO_MIN_CARRINHO))
