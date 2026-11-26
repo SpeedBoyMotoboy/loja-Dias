@@ -308,8 +308,20 @@ def catbar():
                 + "".join(f'<option value="{sl}.html">{e(n)}</option>' for n, sl, _, _ in MOTOS_ATIVAS)
                 + f'</select><select aria-label="Escolha o tipo de peça" {vai}><option value="">Tipo de peça</option>'
                 + "".join(f'<option value="{e(u)}">{e(t)}</option>' for t, u in ATALHOS) + '</select></div>') if MOTOS_ATIVAS else ""
-    return (f'<nav class="catbar{" tem-pick" if escolhas else ""}" aria-label="Categorias e motos"><div class="wrap">{escolhas}'
+    return (f'<nav class="catbar{" tem-pick" if escolhas else ""}" aria-label="Categorias e motos"><div class="wrap">{seletor_veiculo()}{escolhas}'
             f'<div class="rail">{a}</div><div class="rail motos"><span class="lbl2">Sua moto</span>{m}</div></div></nav>')
+
+# Luan 26/11: escolha Moto / Carro no topo para separar as peças. Enquanto não houver peça de carro no catálogo,
+# "Carro" leva para carro.html (em breve). Quando o catálogo trouxer tipo=carro, passa a abrir o catálogo de carro sozinho.
+TEM_CARRO = False  # preenchido em main()
+
+def seletor_veiculo(ativo="moto"):
+    carro = "catalogo.html?tipo=carro" if TEM_CARRO else "carro.html"
+    breve = "" if TEM_CARRO else '<small>em breve</small>'
+    cur = lambda t: ' aria-current="true"' if t == ativo else ""
+    return (f'<div class="veic" role="group" aria-label="Tipo de veículo">'
+            f'<a href="catalogo.html?tipo=moto"{cur("moto")}>Moto</a>'
+            f'<a href="{carro}"{cur("carro")}>Carro{breve}</a></div>')
 
 def lk(t):
     return f"pedido.html?tipo={t}" if VITRINE else f"catalogo.html?tipo={t}"
@@ -891,6 +903,24 @@ def privacidade():
 <p class="note">Versão 1, novembro de 2026.</p></div></section>'''
     pagina("privacidade.html", "Privacidade | Loja Dias Peças", "Como a Loja Dias Peças trata seus dados (LGPD).", corpo)
 
+def carro():
+    """Luan 26/11: aba Carro. Sem peça de carro no catálogo ainda: página 'em breve' que guarda o pedido pelo WhatsApp."""
+    if TEM_CARRO:
+        corpo = '<section><div class="wrap prose"><h1>Peças de carro</h1><p><a class="btn" href="catalogo.html?tipo=carro">Ver as peças de carro</a></p></div></section>'
+    else:
+        msg = "Olá! Procuro peça de carro. Carro, ano e peça: "
+        wa = f'https://wa.me/{CFG["whatsapp"]}?text={quote(msg)}'
+        corpo = f"""<section><div class="wrap prose embreve" style="max-width:680px"><p class="breve">Em breve</p>
+<h1>Peças de carro</h1>
+<p class="lead">Estamos montando o catálogo de carro: pastilha, filtros, vela, palheta, bateria e lâmpadas, com a mesma entrega por motoboy no dia.</p>
+<p>Precisa de uma peça de carro agora? Mande o carro, o ano e a peça no WhatsApp. A gente procura e responde com preço e prazo antes de você pagar qualquer coisa.</p>
+<p><a class="btn wa" href="{wa}" target="_blank" rel="noopener">Perguntar no WhatsApp</a></p>
+<p><a href="catalogo.html?tipo=moto">Ver as peças de moto</a></p></div></section>"""
+    pagina("carro.html", "Peças de carro | Loja Dias Peças",
+           "Peças de carro com entrega por motoboy na Grande Vitória. Catálogo em montagem: peça pelo WhatsApp.", corpo)
+    f = DIST / "carro.html"
+    f.write_text(f.read_text(encoding="utf-8").replace(seletor_veiculo("moto"), seletor_veiculo("carro")), encoding="utf-8")
+
 def trocas():
     """Luan 26/11: página de troca, devolução e garantia (CDC arts. 18, 26 e 49), linkada no rodapé, no carrinho e na peça."""
     wa = CFG["whatsapp_exibir"]
@@ -953,12 +983,14 @@ def main():
         shutil.copytree(RAIZ / "img", DIST / "img")
     for f in ("style.css", "app.js", "conta.js", "admin.js", "avaliacoes.js", "moderar.js"):
         shutil.copy(RAIZ / "assets" / f, DIST / "assets" / f)
-    global VITRINE, AVAL
+    global VITRINE, AVAL, TEM_CARRO, SO_MOTO
     ps = carregar()
+    TEM_CARRO = any(p["tipo"] == "carro" for p in ps)
+    SO_MOTO = SO_MOTO and not TEM_CARRO  # chegou peça de carro: textos e filtros voltam a falar de moto e carro
     VITRINE = not ps
     AVAL = AVAL and not VITRINE
     MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
-    home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos(); trocas()
+    home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos(); trocas(); carro()
     if VITRINE:
         pedido()
     else:
