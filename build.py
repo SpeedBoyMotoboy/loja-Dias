@@ -829,12 +829,27 @@ def admin():
 .pmais textarea,.pmodal input,.pmodal select,.pmodal textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--bg);color:var(--ink);margin-bottom:8px}
 .pmodal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;overflow:auto;padding:16px}
 .pmodal .panel{max-width:520px;margin:20px auto}
+.pbig{width:100%;min-height:56px;font-size:19px;margin:6px 0}
+.pnome{display:flex;justify-content:space-between;gap:10px;font-size:20px;align-items:baseline}.pval{white-space:nowrap}
+.pitens{font-size:16px;line-height:1.45}
+.pagora{background:var(--gold-soft,#fff6d6);color:#3a2d00;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:600;margin:4px 0}
+.palerta{background:#fdecea;color:#8a1c12;border-radius:10px;padding:10px 12px;font-weight:600;margin:4px 0}
+.pinfo{margin:0;font-weight:600}
+.pbloco{background:var(--bg);border-radius:10px;padding:10px;margin-top:8px}
+.pmais summary{cursor:pointer;padding:10px 0;font-weight:600;font-size:16px}
+.pfim{margin-top:14px;border-top:1px solid var(--line)}.pfim .btn{width:100%;margin:6px 0}
+.pfim #pbusca{margin-top:6px}
+.plogin{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:8px}.plogin h2{margin:0}
+.pvazio{text-align:center;font-size:18px;padding:30px 10px;color:var(--muted)}
+.pcard .pchip{font-size:15px;padding:5px 12px}
+.pabas button{font-size:16px;padding:10px 14px}
+.pcard.st-entregue,.pcard.st-cancelado{opacity:.85}
 .painel .lbl{display:block;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .wafloat,.buybar{display:none!important}
 </style>"""
     corpo = css + '''<section><div class="wrap prose painel"><h1>Pedidos da loja</h1><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
     out = head("Pedidos | Loja Dias", "Tela da loja.", "admin.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
-        + topo() + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
+        + '<header class="top"><div class="wrap"><a class="logo" href="index.html">Loja <span>Dias</span> Peças</a></div></header>' + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
     (DIST / "admin.html").write_text(out, encoding="utf-8")
 
 def moderar():
