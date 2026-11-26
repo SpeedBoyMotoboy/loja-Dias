@@ -321,7 +321,7 @@ def rodape(artifact=False):
     return f'''<footer><div class="wrap">
 <div><b>Loja Dias Peças</b>Peças de moto e carro com entrega por motoboy na Grande Vitória, ES.<br>{e(CFG["horario"])}<br>WhatsApp {e(CFG["whatsapp_exibir"])}<br>CNPJ {e(CFG.get("cnpj",""))}</div>
 <div><b>Entregamos em</b>{cid}</div>
-<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a>{'<a href="indique.html">Indique e ganhe</a>' if IND and not VITRINE else ""}<a href="privacidade.html">Privacidade</a>{'<a href="creditos.html">Créditos das fotos</a>' if not VITRINE else ""}</div>
+<div><b>Comprar</b><a href="{lk("moto")}">Peças de moto</a>{"" if SO_MOTO else f'<a href="{lk("carro")}">Peças de carro</a>'}<a href="{"pedido.html" if VITRINE else "carrinho.html"}">{"Fazer pedido" if VITRINE else "Carrinho"}</a><a href="entrega.html">Prazos e fretes</a><a href="trocas.html">Troca e devolução</a>{'<a href="indique.html">Indique e ganhe</a>' if IND and not VITRINE else ""}<a href="privacidade.html">Privacidade</a>{'<a href="creditos.html">Créditos das fotos</a>' if not VITRINE else ""}</div>
 </div></footer>
 <a class="wafloat" href="{wa}" target="_blank" rel="noopener" aria-label="Falar com a loja no WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.200 8.200 0 0 1-4.200-1.150l-.300-.180-3 .790.800-2.900-.200-.300A8.200 8.200 0 1 1 12 20.200zm4.500-6.100c-.250-.120-1.460-.720-1.690-.800-.230-.080-.390-.120-.560.120-.160.250-.640.800-.780.970-.140.160-.290.180-.530.060-.250-.120-1.040-.380-1.980-1.220-.730-.650-1.230-1.460-1.370-1.700-.140-.250-.020-.380.110-.500.110-.110.250-.290.370-.430.120-.140.160-.250.250-.410.080-.160.040-.310-.020-.430-.060-.120-.560-1.340-.760-1.840-.200-.480-.410-.420-.560-.420h-.480c-.160 0-.430.060-.660.310-.230.250-.860.840-.860 2.050 0 1.210.880 2.380 1 2.540.120.160 1.740 2.650 4.200 3.720.590.250 1.050.400 1.400.520.590.190 1.130.160 1.550.100.470-.070 1.460-.600 1.670-1.170.200-.580.200-1.070.140-1.170-.060-.110-.220-.170-.470-.290z"/></svg><span>WhatsApp</span></a>
 <div class="buybar" id="buybar" hidden></div>
@@ -526,7 +526,7 @@ def confianca(preco=0):
         itens.append("Se preferir, pague o Pix quando o motoboy chegar")
     itens += ["Não serviu? O motoboy busca e troca em até 7 dias", GARANTIA,
               f"Loja de {CFG['cidade_base']}, CNPJ {CFG.get('cnpj','')}"]
-    return '<ul class="trust">' + "".join(f"<li>{e(t)}</li>" for t in itens) + "</ul>"
+    return '<ul class="trust">' + "".join(f"<li>{e(t)}</li>" for t in itens) + '<li><a href="trocas.html">Como funciona a troca e a garantia</a></li></ul>'
 
 def leve_junto(p, ps):
     """Peças baratas que servem na mesma moto (ou em qualquer uma), de outras categorias: ajudam a fechar o frete grátis."""
@@ -725,11 +725,14 @@ def indique(ps):
     d, c, dias = pct(IND["desconto"]), pct(IND["comissao"]), IND.get("dias", 30)
     n = sum(1 for p in ps if p["ind"])
     ex = next((p for p in sorted(ps, key=lambda p: -p["preco"]) if p["ind"] and p["categoria"] == "kit" and p["preco"] < 120), None)
+    tem_d = IND["desconto"] > 0
     exemplo = (f'<p class="note">Exemplo: o cliente compra o {e(ex.get("titulo") or ex["nome"])} de {brl(ex["preco"])} pelo seu link. '
-               f'Ele paga {brl(ex["preco"] * (1 - IND["desconto"]))} e você ganha {brl(ex["preco"] * IND["comissao"])} no Pix.</p>') if ex else ""
+               + (f'Ele paga {brl(ex["preco"] * (1 - IND["desconto"]))} e você' if tem_d else "Você")
+               + f' ganha {brl(ex["preco"] * IND["comissao"])} no Pix.</p>') if ex else ""
+    ganha_cli = f" Quem compra pelo seu link ganha <b>{d} de desconto</b>." if tem_d else ""
     corpo = f'''<section><div class="wrap prose indique" style="max-width:720px">
 <h1>Indique e ganhe</h1>
-<p class="lead">Mande o seu link para os amigos e grupos de motoboy. Quem compra pelo seu link ganha <b>{d} de desconto</b>. Você ganha <b>{c} de comissão no Pix</b> em cada venda.</p>
+<p class="lead">Mande o seu link para os amigos e grupos de motoboy.{ganha_cli} Você ganha <b>{c} de comissão no Pix</b> em cada venda que vier pelo seu link.</p>
 <div class="panel" id="indbox">
 <h2>1. Crie o seu link</h2>
 <div class="field"><label class="lbl" for="inome">Seu nome</label><input id="inome" autocomplete="given-name" placeholder="Ex.: João"></div>
@@ -753,8 +756,8 @@ def indique(ps):
 </div>
 <h2>Como funciona</h2>
 <ol>
-<li>Quem abre o seu link fica com o desconto por {dias} dias naquele celular, em qualquer página do site.</li>
-<li>O desconto de {d} vale para {n} peças e kits (a maioria). No carrinho aparece quanto o cliente economizou.</li>
+<li>Quem abre o seu link fica marcado como indicação sua por {dias} dias naquele celular, em qualquer página do site.</li>
+<li>A comissão vale para {n} peças e kits (a maioria).{(" O cliente também ganha " + d + " de desconto nessas peças.") if tem_d else ""}</li>
 <li>O pedido chega na loja com o seu código. Depois que o cliente paga e recebe a peça, a loja manda {c} do valor dessas peças para a sua chave Pix.</li>
 <li>Não vale compra feita no seu próprio link.</li>
 </ol>
@@ -762,7 +765,7 @@ def indique(ps):
 <p class="note">Dúvida? Chame a loja no WhatsApp {e(CFG["whatsapp_exibir"])}.</p>
 </div></section>'''
     pagina("indique.html", "Indique e ganhe | Loja Dias Peças",
-           f"Mande o seu link da Loja Dias: quem compra ganha {d} de desconto e você ganha {c} de comissão no Pix.", corpo)
+           f"Mande o seu link da Loja Dias e ganhe {c} de comissão no Pix em cada venda.", corpo)
 
 def entrega():
     corpo = f'''<section><div class="wrap prose"><h1>Entrega e fretes</h1>
@@ -798,6 +801,7 @@ def carrinho():
 <p class="err" id="err" hidden></p>
 <div id="pixbox" class="ship" hidden><span class="lbl">Pix copia e cola</span><textarea id="pixcode" readonly rows="4" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--bg);color:var(--ink);resize:none"></textarea><button class="btn dark" type="button" id="pixcopy">Copiar código Pix</button><span class="note" id="pixnota">Pague no app do seu banco (Pix › Copia e cola) e depois envie o pedido com o comprovante.</span></div>
 <a class="btn wa big" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido e comprovante no WhatsApp</a>
+<p class="note">Não serviu? Troca grátis em 7 dias, e o motoboy busca. <a href="trocas.html">Ver troca, devolução e garantia</a>.</p>
 <p class="note">O pedido abre pronto no WhatsApp da loja. A gente confirma a peça e o horário de entrega na hora.</p>
 {confianca()}</div></div>'''
     head_ = head("Carrinho | Loja Dias Peças", "Seu pedido na Loja Dias Peças.", "carrinho.html")
@@ -887,9 +891,32 @@ def privacidade():
 <p class="note">Versão 1, novembro de 2026.</p></div></section>'''
     pagina("privacidade.html", "Privacidade | Loja Dias Peças", "Como a Loja Dias Peças trata seus dados (LGPD).", corpo)
 
+def trocas():
+    """Luan 26/11: página de troca, devolução e garantia (CDC arts. 18, 26 e 49), linkada no rodapé, no carrinho e na peça."""
+    wa = CFG["whatsapp_exibir"]
+    corpo = f"""<section><div class="wrap prose" style="max-width:760px"><h1>Troca, devolução e garantia</h1>
+<p class="lead">Comprou e não serviu, mudou de ideia ou a peça deu defeito? O motoboy da loja busca na sua casa. Você não paga frete para trocar nem para devolver.</p>
+<h2>A peça não serviu na sua moto</h2>
+<p>Troca grátis em até 7 dias depois de receber. Mande no WhatsApp a foto da peça e o modelo e ano da moto. A gente confere, separa a peça certa e o motoboy leva a nova e busca a errada na mesma viagem. Se a peça certa custar mais, você paga só a diferença. Se custar menos, devolvemos a diferença no Pix.</p>
+<h2>Mudou de ideia</h2>
+<p>Compra feita pela internet ou pelo WhatsApp pode ser devolvida em até 7 dias depois de receber, sem precisar dar motivo (Código de Defesa do Consumidor, art. 49). Devolvemos tudo o que você pagou, frete incluído, no Pix, em até 2 dias úteis depois que a peça volta para a loja. Peça sem montar e com a embalagem ajuda a gente a conferir mais rápido.</p>
+<h2>A peça deu defeito</h2>
+<p>Toda peça tem garantia de 90 dias contra defeito de fabricação, contados do dia em que você recebe (art. 26). Mande no WhatsApp fotos ou vídeo do defeito. O motoboy busca a peça, a gente aciona o fabricante e, em até 30 dias, você recebe uma peça nova igual. Se não tiver, você escolhe outra peça ou o dinheiro de volta (art. 18).</p>
+<p>A garantia não cobre desgaste normal de uso (pastilha, lona, relação e pneu gastam), peça montada do jeito errado, batida ou queda, nem peça usada em moto diferente da que está no anúncio.</p>
+<h2>Passo a passo</h2>
+<ol class="steps">
+<li><b>Chame no WhatsApp</b><span>{e(wa)}, com o código do pedido (começa com LD) e uma foto da peça.</span></li>
+<li><b>A gente responde</b><span>Em horário comercial, no mesmo dia. Combinamos o melhor horário para o motoboy passar.</span></li>
+<li><b>O motoboy busca</b><span>Sem custo para você. Na troca, ele já leva a peça certa.</span></li>
+<li><b>Dinheiro de volta no Pix</b><span>Quando for devolução, em até 2 dias úteis depois que a peça chega na loja.</span></li></ol>
+<p><a class="btn wa" href="https://wa.me/{CFG["whatsapp"]}?text={quote("Olá! Quero trocar ou devolver uma peça. Código do pedido: ")}" target="_blank" rel="noopener">Pedir troca ou devolução no WhatsApp</a></p>
+<p class="note">{e(CFG["nome_loja"])}, CNPJ {e(CFG.get("cnpj",""))}, {e(CFG["cidade_base"])}, ES.</p></div></section>"""
+    pagina("trocas.html", "Troca, devolução e garantia | Loja Dias Peças",
+           "Troca grátis em 7 dias, devolução do dinheiro no Pix e garantia de 90 dias. O motoboy busca na sua casa na Grande Vitória.", corpo)
+
 def extras(ps):
     hoje = date.today().isoformat()
-    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
+    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html", "trocas.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /moderar.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
@@ -914,6 +941,7 @@ def extras(ps):
     if FIREBASE:
         cfg["firebase"] = FIREBASE
         cfg["appcheck"] = CFG.get("appcheck_site_key", "")
+        cfg["login_email"] = bool(CFG.get("login_email", False))
         cfg["video_avaliacao"] = bool(CFG.get("video_avaliacao", False))
     (DIST / "assets/loja.js").write_text("window.LOJA=" + json.dumps({"produtos": pub, "config": cfg}, ensure_ascii=False) + ";\n", encoding="utf-8")
 
@@ -930,7 +958,7 @@ def main():
     VITRINE = not ps
     AVAL = AVAL and not VITRINE
     MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
-    home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos()
+    home(ps); home(ps, artifact=True); entrega(); privacidade(); creditos(); trocas()
     if VITRINE:
         pedido()
     else:
