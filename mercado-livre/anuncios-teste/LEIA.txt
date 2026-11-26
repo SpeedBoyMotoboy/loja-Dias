@@ -1,0 +1,13 @@
+10 anúncios de teste da Loja Dias no Mercado Livre.
+Cada pasta: fotos (foto1 = principal) e texto.txt para copiar.
+
+01 Kit Manutenção CG 160 Fan/Titan 2019 em diante: kit relação  | R$ 167.9 | 4 fotos
+02 Kit Manutenção Bros 160: kit relação + pastilha dianteira +  | R$ 144.9 | 3 fotos
+03 Kit Relação + Freio CG 150 Titan/Fan 2010 a 2015: kit relaçã | R$ 117.9 | 2 fotos
+04 Kit Relação + Freio CG 160 Fan/Titan 2019 em diante: kit rel | R$ 111.9 | 2 fotos
+05 Kit Pastilhas Lander 250 / Ténéré 250: pastilha dianteira Co | R$ 59.9 | 2 fotos
+06 Filtro de ar Fazer 150, Crosser 150 e outras Wega | R$ 40.9 | 5 fotos
+07 Lona de freio dianteira ou traseira CG 160 Fan/Titan, CG 150 | R$ 46.9 | 5 fotos
+08 Vela de ignição iridium NGK CPR8EAIX9 CG 160 Fan/Titan, CG 1 | R$ 90.9 | 5 fotos
+09 Kit relação com retentor Bros 160 e XRE 190 Nakata | R$ 203.9 | 5 fotos
+10 Retrovisor preto combate haste 9 mm Biz 125, Pop 100 e outra | R$ 40.9 | 2 fotos
