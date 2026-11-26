@@ -250,6 +250,7 @@
       const txid = "LD" + Date.now().toString(36).toUpperCase().slice(-8) + Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3).padEnd(3,"0");
       const tel = $("#tel") ? $("#tel").value.trim().slice(0,20) : "";
       $("#pixcode").value = pixCode(sinal || t.total, txid);
+      const pv = $("#pixvalor"); if(pv) pv.textContent = brl(sinal || t.total);
       const msg = [`*Pedido Loja Dias* (${txid})`, `Cliente: ${$("#name").value.trim()}`, tel?`WhatsApp: ${tel}`:null,
         ...t.items.map(i=>`• ${i.q}x ${i.p.nome} (${i.p.sku}) = ${brl(i.p.preco*i.q)}`),
         `Peças: ${brl(t.sub)}`, t.desc?`Desconto Pix: -${brl(t.desc)}`:null,
@@ -295,7 +296,7 @@
       if(!meuRef) return;
       const link = linkCom(""), gr = C.frete_gratis_acima;
       $("#icod").textContent = meuRef.c; $("#ilink").value = link;
-      const msg = `Peça de moto com entrega no mesmo dia na Grande Vitória (pedido até ${C.corte_mesmo_dia}).\n${IND.desconto>0?`Pelo meu link você ganha ${pctInd} de desconto:`:"Compre pelo meu link:"}\n${link}\nPix agora ou na entrega${gr?". Frete grátis acima de "+brl(gr):""}.`;
+      const msg = `Peça de moto com entrega no mesmo dia na Grande Vitória (pedido até ${C.corte_mesmo_dia}).\n${IND.desconto>0?`Pelo meu link você ganha ${pctInd} de desconto:`:"Compre pelo meu link:"}\n${link}\n${C.na_entrega?"Pix agora ou na entrega":"Pagamento no Pix"}${gr?". Frete grátis acima de "+brl(gr):""}.`;
       $("#imsg").value = msg; $("#izap").href = "https://wa.me/?text=" + encodeURIComponent(msg);
       if(navigator.share){ $("#imais").hidden = false; $("#imais").onclick = () => navigator.share({text: msg}).catch(()=>{}); }
     };

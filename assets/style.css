@@ -493,3 +493,9 @@ footer{background:#1a1a1a}
 .embreve{padding-block:36px 48px}
 .embreve .breve{display:inline-block;margin:0 0 10px;padding:3px 10px;border-radius:999px;background:var(--gold-soft);color:var(--accent-ink);font-weight:700;font-size:14px}
 .embreve .btn{min-height:48px}
+
+/* Luan 26/11: tela do Pix com valor e recebedor claros antes do código */
+.pixquem{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 12px;padding:12px 14px;border-radius:10px;background:var(--gold-soft);font-size:15px}
+.pixquem dt{color:var(--muted)}
+.pixquem dd{margin:0;font-weight:700}
+#pixvalor{font-family:var(--display);font-size:24px;line-height:1;color:var(--blue)}
