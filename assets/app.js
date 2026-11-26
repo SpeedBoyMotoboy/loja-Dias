@@ -56,8 +56,10 @@
   // botões "Adicionar"
   document.addEventListener("click", e => {
     const c = e.target.closest("[data-buy]");
+    const enc = x => { const q = P.find(p=>p.sku===x); return !q || q.enc; };
+    if(c && enc(c.dataset.buy)) return;
     if(c){ const s = c.dataset.buy; if(!cart[s]) cart[s]=1; save(); ga("add_to_cart", {items:[{item_id:s}]}); location.href="carrinho.html"; return; }  // comprar agora: vai direto fechar o pedido
-    const b = e.target.closest("[data-add]"); if(!b) return;
+    const b = e.target.closest("[data-add]"); if(!b || enc(b.dataset.add)) return;
     const s = b.dataset.add; cart[s]=(cart[s]||0)+1; save(); badge(); bar();
     ga("add_to_cart", {items:[{item_id:s}]});
     document.dispatchEvent(new Event("dias-cart"));
@@ -86,6 +88,7 @@
   const CR = C.carro || null;
   const temCarro = its => !!CR && its.some(i=>i.p.tipo==="carro");
   const vaiFiorino = its => !!CR && (its.some(i=>i.p.fiorino) || its.reduce((a,i)=>a+(i.p.kg||0)*i.q,0) > (CR.fiorino_kg||Infinity));
+  for(const s of Object.keys(cart)){ const q = P.find(p=>p.sku===s); if(q && q.enc) delete cart[s]; }  // encomenda não vai para o carrinho
   const itensCart = () => Object.entries(cart).map(([s,q])=>({p:P.find(p=>p.sku===s),q})).filter(i=>i.p);
   const subtotal = () => Object.entries(cart).reduce((a,[s,q])=>{ const p=P.find(x=>x.sku===s); return a+(p?p.preco*q:0); },0);
   function bar(){
@@ -215,7 +218,7 @@
         if(falta>0){
           const ordem = ["freio","filtro","ignicao","transmissao","pneu","eletrica","cabo","acessorio"], rank = p => { const i = ordem.indexOf(p.categoria); return i<0?9:i; };  // o que mais se troca vem primeiro
           const no = new Set(t.items.map(i=>i.p.sku)), fams = new Set(t.items.flatMap(i=>i.p.fams||[])), cats = new Set(t.items.map(i=>i.p.categoria));
-          const cand = P.filter(p=>!no.has(p.sku) && p.foto && p.categoria!=="kit" && (!t.carro || p.tipo==="carro") && ((p.fams||[]).some(f=>fams.has(f)) || p.universal))
+          const cand = P.filter(p=>!no.has(p.sku) && !p.enc && p.foto && p.categoria!=="kit" && (!t.carro || p.tipo==="carro") && ((p.fams||[]).some(f=>fams.has(f)) || p.universal))
             .sort((a,b)=> (cats.has(a.categoria)-cats.has(b.categoria)) || (((b.fams||[]).some(f=>fams.has(f)))-((a.fams||[]).some(f=>fams.has(f)))) || (rank(a)-rank(b)) || (Math.abs(a.preco-falta)-Math.abs(b.preco-falta)));
           const pick = [], usados = new Set();
           for(const p of cand){ if(usados.has(p.categoria)) continue; pick.push(p); usados.add(p.categoria); if(pick.length===3) break; }
