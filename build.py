@@ -448,10 +448,42 @@ def faq_html():
     return "".join(f'<details><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in FAQ)
 
 def loja_ld():
-    return {"@context": "https://schema.org", "@type": "AutoPartsStore", "name": CFG["nome_loja"], "url": URL + "/",
+    """SEO local 26/11: loja de área de atendimento (sem balcão). Endereço só com cidade/estado, sem rua (igual ao Perfil da Empresa).
+    Fonte: developers.google.com/search/docs/appearance/structured-data/local-business"""
+    return {"@context": "https://schema.org", "@type": "AutoPartsStore", "@id": URL + "/#loja", "name": CFG["nome_loja"], "url": URL + "/",
+            "logo": f"{URL}/img/icone-512.png", "image": f"{URL}/img/og.png",
+            "description": "Loja online de peças de moto com entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana (ES).",
             "telephone": "+" + CFG["whatsapp"], "taxID": CFG.get("cnpj", ""), "priceRange": "R$",
+            "address": {"@type": "PostalAddress", "addressLocality": CFG.get("cidade_base", "Vila Velha"), "addressRegion": "ES", "addressCountry": "BR"},
             "areaServed": [{"@type": "City", "name": c["nome"], "containedInPlace": {"@type": "State", "name": "Espírito Santo"}} for c in CFG["cidades"]],
-            "paymentAccepted": "Pix", "openingHours": "Mo-Sa 08:00-18:00"}
+            "paymentAccepted": "Pix", "currenciesAccepted": "BRL",
+            "openingHoursSpecification": [{"@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "08:00", "closes": "18:00"}],
+            "contactPoint": {"@type": "ContactPoint", "telephone": "+" + CFG["whatsapp"], "contactType": "customer service", "areaServed": "BR-ES", "availableLanguage": "pt-BR"},
+            "hasMerchantReturnPolicy": RETORNO_LD}
+
+# Troca e devolução (página trocas.html): 7 dias, grátis, o motoboy busca. Fonte: developers.google.com/search/docs/appearance/structured-data/return-policy
+RETORNO_LD = {"@type": "MerchantReturnPolicy", "applicableCountry": "BR", "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+              "merchantReturnDays": 7, "returnFees": "https://schema.org/FreeReturn",
+              "merchantReturnLink": URL + "/trocas.html"}
+
+# Frete por cidade para o Google (prefixo de CEP). Faixas de CEP dos Correios: não conferido peça por peça; confira se o Google reclamar.
+CEP_PREFIXO = {"vitoria": ["290"], "vila-velha": ["2910", "2911", "2912"], "viana": ["2913"], "cariacica": ["2914", "2915"], "serra": ["2916", "2917", "2918"]}
+
+def frete_ld(preco):
+    out = []
+    for c in CFG["cidades"]:
+        pref = CEP_PREFIXO.get(c["slug"])
+        if not pref or not FRETE_OK:
+            continue
+        gratis = c.get("gratis_acima") or GRATIS
+        valor = 0 if gratis and preco >= gratis else c["normal"]
+        out.append({"@type": "OfferShippingDetails",
+                    "shippingRate": {"@type": "MonetaryAmount", "value": f"{valor:.2f}", "currency": "BRL"},
+                    "shippingDestination": [{"@type": "DefinedRegion", "addressCountry": "BR", "postalCodePrefix": x} for x in pref],
+                    "deliveryTime": {"@type": "ShippingDeliveryTime",
+                                     "handlingTime": {"@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY"},
+                                     "transitTime": {"@type": "QuantitativeValue", "minValue": 0, "maxValue": 1, "unitCode": "DAY"}}})
+    return out
 
 # ---------- páginas ----------
 def pagina(path, title, desc, corpo, ld=None, artifact=False, js=""):
@@ -514,7 +546,8 @@ def home(ps, artifact=False):
     motos_tiles = "".join(
         f'<a href="{sl}.html"><span class="mf">{f"""<img src="{foto_moto(sl)}" alt="{e(marca)} {e(n)}" width="480" height="360" loading="lazy">""" if foto_moto(sl) else MOTO_DESENHO}</span>'
         f'<span class="mt"><b>{e(n)}</b><span>{len(pecas_da_moto(ps, fams))} peças</span></span></a>' for n, sl, fams, marca in MOTOS_ATIVAS)
-    cats = lambda t: "".join(f'<a href="catalogo.html?tipo={t}&cat={c}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
+    fixa = {c: sl for c, sl, _, _ in CATS_ATIVAS}
+    cats = lambda t: "".join(f'<a href="{fixa[c] + ".html" if t == "moto" and c in fixa else f"catalogo.html?tipo={t}&cat={c}"}">{n}</a>' for c, n in CATS.items() if any(p["tipo"] == t and p["categoria"] == c for p in ps))
     # Primeira tela (25/11, cenário do Luan): peça com foto, preço e botão aparecem sem rolar, no celular e no PC.
     topo4, destaque = destaque[:4], destaque[4:] or destaque
     corpo = f'''<div class="hero hero2"><div class="wrap">
@@ -670,7 +703,8 @@ def produto(p, ps=()):
            **({"image": [f"{URL}/{f}" for f in p["fotos"]]} if p["fotos"] else {}),
            "offers": {"@type": "Offer", "price": f"{p['preco']:.2f}", "priceCurrency": "BRL", "url": f"{URL}/{p['url']}",
                       "availability": "https://schema.org/BackOrder" if p.get("encomenda") else "https://schema.org/InStock" if p["estoque"] > 0 else "https://schema.org/OutOfStock",
-                      "itemCondition": "https://schema.org/NewCondition", "seller": {"@type": "Organization", "name": CFG["nome_loja"]}}},
+                      "itemCondition": "https://schema.org/NewCondition", "seller": {"@type": "Organization", "name": CFG["nome_loja"], "@id": URL + "/#loja"},
+                      "hasMerchantReturnPolicy": RETORNO_LD, **({"shippingDetails": frete_ld(p["preco"])} if not p.get("encomenda") and frete_ld(p["preco"]) else {})}},
           {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
               {"@type": "ListItem", "position": 1, "name": "Início", "item": URL + "/"},
               {"@type": "ListItem", "position": 2, "name": f"Peças de {TIPOS[p['tipo']].lower()}", "item": f"{URL}/catalogo.html?tipo={p['tipo']}"},
@@ -735,20 +769,100 @@ def pedido():
     pagina("pedido.html", "Fazer pedido | Loja Dias Peças",
            "Peça de moto ou carro com entrega por motoboy no mesmo dia na Grande Vitória. Envie o pedido pelo WhatsApp.", corpo)
 
+# SEO local 26/11: cada cidade com texto próprio (bairros, prazo, frete), não a mesma página com o nome trocado.
+# Google chama de "doorway" páginas quase iguais por cidade: developers.google.com/search/docs/essentials/spam-policies#doorways
+CIDADE_INFO = {
+ "vila-velha": ("A Loja Dias fica em Vila Velha. É a cidade com a entrega mais rápida: a peça sai daqui mesmo.",
+   ["Centro", "Praia da Costa", "Itapuã", "Praia de Itaparica", "Coqueiral de Itaparica", "Glória", "Cobilândia", "Ibes", "Aribiri", "Divino Espírito Santo",
+    "São Torquato", "Santa Inês", "Novo México", "Jardim Marilândia", "Alvorada", "Paul", "Ataíde", "Santa Mônica", "Barra do Jucu", "Ponta da Fruta", "Terra Vermelha"]),
+ "vitoria": ("De Vila Velha para Vitória o motoboy atravessa a Terceira Ponte ou a Ponte Florentino Avidos. Atendemos a ilha e a parte continental.",
+   ["Centro", "Praia do Canto", "Praia do Suá", "Enseada do Suá", "Bento Ferreira", "Jucutuquara", "Maruípe", "Santa Lúcia", "Santa Luíza", "Santo Antônio",
+    "São Pedro", "Ilha de Santa Maria", "Jardim da Penha", "Mata da Praia", "Jardim Camburi", "Goiabeiras", "República", "Consolação", "Itararé", "Forte São João"]),
+ "cariacica": ("Cariacica fica colada em Vila Velha e Vitória. Muita oficina de moto e muito motoboy rodando: é onde a peça de giro mais sai.",
+   ["Campo Grande", "Itacibá", "Jardim América", "Alto Lage", "Porto de Santana", "Flexal", "Nova Brasília", "Bela Aurora", "Vera Cruz",
+    "Itanguá", "Rio Marinho", "Santana", "Cariacica Sede", "Tabajara", "Oriente", "Rio Branco"]),
+ "serra": ("A Serra é a maior cidade da Grande Vitória. O frete é um pouco maior pela distância, mas a entrega continua no mesmo dia para pedido até o meio-dia.",
+   ["Laranjeiras", "Parque Residencial Laranjeiras", "Carapina", "Jardim Limoeiro", "Barcelona", "Feu Rosa", "Vila Nova de Colares", "Jacaraípe",
+    "Manguinhos", "Nova Almeida", "Serra Sede", "André Carloni", "Novo Horizonte", "Planalto Serrano", "Colina de Laranjeiras", "José de Anchieta", "Taquara"]),
+ "viana": ("Viana fica no caminho da BR-262. O frete é um pouco maior pela distância, mas a entrega continua no mesmo dia para pedido até o meio-dia.",
+   ["Centro", "Marcílio de Noronha", "Areinha", "Vila Bethânia", "Nova Bethânia", "Universal", "Canaã", "Ipanema", "Industrial", "Campo Verde"]),
+}
+
 def cidade(c, ps):
-    mais = [p for p in ps if p["estoque"] > 3][:8]
+    mais = uma_por_tipo([p for p in ps if p["estoque"] > 3 and p["categoria"] != "kit"], 8)
+    intro, bairros = CIDADE_INFO.get(c["slug"], ("", []))
+    gratis = c.get("gratis_acima") or GRATIS
+    frete = (f"Frete de {brl(c['normal'])} para qualquer bairro de {e(c['nome'])}" + (f", grátis acima de {brl(gratis)}" if gratis else "") + ".") if FRETE_OK else ""
+    motos = "".join(f'<a href="{sl}.html">Peças de {e(n)} em {e(c["nome"])}</a>' for n, sl, _, _ in MOTOS_ATIVAS)
+    tipos = "".join(f'<a href="{sl}.html">{e(t)}</a>' for _, sl, t, _ in CATS_ATIVAS)
+    outras = " · ".join(f'<a href="entrega-{o["slug"]}.html">{e(o["nome"])}</a>' for o in CFG["cidades"] if o["slug"] != c["slug"])
+    faq = [(f"Vocês entregam peça de moto em {c['nome']} no mesmo dia?", f"Sim. Pedido confirmado até {CFG['corte_mesmo_dia']} chega até as {CFG['entrega_ate']} do mesmo dia em {c['nome']}. Depois disso, no dia seguinte."),
+           (f"Quanto custa o frete para {c['nome']}?", f"{brl(c['normal'])} por pedido" + (f", e grátis a partir de {brl(gratis)} em peças." if gratis else ".") if FRETE_OK else "Informado no pedido."),
+           (f"Entregam em oficina de {c['nome']}?", "Sim. O motoboy leva direto na oficina. Mande o nome e o endereço da oficina no pedido."),
+           ("Como pago?", "No Pix, na hora do pedido ou quando o motoboy chegar (o motoboy só entrega depois que o Pix cai na conta da loja).")]
     corpo = f'''<div class="hero"><div class="wrap"><span class="eyebrow" style="color:var(--road-muted)">Entrega em {e(c["nome"])}, ES</span>
 <h1>Peças de moto e carro em {e(c["nome"])} com entrega por motoboy</h1>
-<p>Entrega {("por " + brl(c["normal"]) + ", ") if FRETE_OK else ""}até as {CFG["entrega_ate"]} do mesmo dia para pedidos até {CFG["corte_mesmo_dia"]}. Depois disso, no dia seguinte. Pagamento no Pix.</p>
+<p>{e(intro)} Pedido até {CFG["corte_mesmo_dia"]} chega até as {CFG["entrega_ate"]} do mesmo dia. {frete} Pagamento no Pix.</p>
 <div><a class="btn" href="{"pedido.html" if VITRINE else "catalogo.html"}">{"Fazer pedido" if VITRINE else "Ver peças"}</a></div></div></div>
 {"" if VITRINE else f'<section><div class="wrap"><h2>Peças prontas para entregar em {e(c["nome"])}</h2><div class="grid">{"".join(card(p) for p in mais)}</div></div></section>'}
-<section><div class="wrap prose"><h2>Como é a entrega em {e(c["nome"])}</h2>
+<section><div class="wrap prose"><h2>Escolha a sua moto</h2><div class="cats">{motos}</div>
+{f'<h2 style="margin-top:28px">Por tipo de peça</h2><div class="cats">{tipos}</div>' if tipos else ""}
+<h2 style="margin-top:28px">Bairros atendidos em {e(c["nome"])}</h2>
+<p>Entregamos em todos os bairros de {e(c["nome"])}, entre eles: {e(", ".join(bairros))}. Não achou o seu? Entregamos também, é só informar o endereço no pedido.</p>
+<h2 style="margin-top:28px">Como é a entrega em {e(c["nome"])}</h2>
 <p>A peça sai separada e conferida com a rede de motoboys da Loja Dias. Você recebe o aviso no WhatsApp quando o motoboy sai e quando ele está chegando. Para oficinas de {e(c["nome"])}, a peça vai direto para a bancada.</p>
-{tabela_frete()}</div></section>'''
-    ld = [dict(loja_ld(), areaServed={"@type": "City", "name": c["nome"]})]
-    pagina(f"entrega-{c['slug']}.html", f"Peças de moto e carro em {c['nome']} | Entrega hoje | Loja Dias",
-           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES. Entrega no mesmo dia para pedidos até {CFG['corte_mesmo_dia']}. Pagamento no Pix.",
+{tabela_frete()}
+<h2 style="margin-top:28px">Dúvidas de quem compra em {e(c["nome"])}</h2>
+{"".join(f'<details><summary>{e(q)}</summary><p>{e(r)}</p></details>' for q, r in faq)}
+<p class="note" style="margin-top:20px">Também entregamos em {outras}.</p></div></section>'''
+    ld = [dict(loja_ld(), areaServed={"@type": "City", "name": c["nome"], "containedInPlace": {"@type": "State", "name": "Espírito Santo"}}),
+          {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+              {"@type": "ListItem", "position": 1, "name": "Início", "item": URL + "/"},
+              {"@type": "ListItem", "position": 2, "name": "Entrega", "item": URL + "/entrega.html"},
+              {"@type": "ListItem", "position": 3, "name": c["nome"]}]}]
+    pagina(f"entrega-{c['slug']}.html", f"Peças de moto e carro em {c['nome']}, ES | Entrega hoje | Loja Dias",
+           f"Peças de moto e carro com entrega por motoboy em {c['nome']}, ES" + (f" ({', '.join(bairros[:3])} e todos os bairros)" if bairros else "")
+           + f". Pedido até {CFG['corte_mesmo_dia']} chega hoje" + (f". Frete {brl(c['normal'])}" if FRETE_OK else "") + ". Pix.",
            corpo, ld)
+
+# SEO 26/11: página fixa por tipo de peça (antes só existia catalogo.html?cat=..., que o Google trata como a mesma página).
+CAT_PAGINA = {"freio": ("freio-de-moto", "Freio de moto", "pastilha, lona, disco, manete e fluido de freio"),
+              "transmissao": ("kit-relacao-de-moto", "Kit relação de moto", "kit relação (coroa, pinhão e corrente), corrente e correia"),
+              "filtro": ("filtro-de-moto", "Filtro de moto", "filtro de ar, de óleo e de combustível"),
+              "oleo": ("oleo-de-moto", "Óleo de moto", "óleo de motor, graxa e aditivos"),
+              "ignicao": ("vela-de-moto", "Vela e ignição de moto", "vela, cachimbo, bobina e CDI"),
+              "eletrica": ("bateria-e-eletrica-de-moto", "Bateria e elétrica de moto", "bateria, lâmpada, regulador, relé e chave"),
+              "cabo": ("cabo-de-moto", "Cabo de moto", "cabo de embreagem, de acelerador, de velocímetro e de freio"),
+              "pneu": ("pneu-e-camara-de-moto", "Pneu e câmara de moto", "pneu e câmara de ar"),
+              "acessorio": ("retrovisor-e-manete-de-moto", "Retrovisor, manete e acessórios de moto", "retrovisor, manete, manopla e pedaleira"),
+              "suspensao": ("suspensao-de-moto", "Suspensão de moto", "retentor, bengala, amortecedor e bucha"),
+              "motor": ("pecas-de-motor-de-moto", "Peças de motor e embreagem de moto", "kit embreagem, pistão, anel, junta e válvula"),
+              "roda": ("rolamento-e-roda-de-moto", "Rolamento e roda de moto", "rolamento de roda, de direção e aro")}
+CATS_ATIVAS = []  # (cat, slug, título, descrição) preenchido em main()
+
+def pagina_categoria(cat, sl, titulo, inclui, ps):
+    xs = [p for p in ps if p["tipo"] == "moto" and p["categoria"] == cat]
+    vis = uma_por_tipo(xs, 60)
+    motos = [(n, s2) for n, s2, fams, _ in MOTOS_ATIVAS if any(set(p.get("fams", [])) & set(fams) for p in xs)]
+    links_motos = "".join(f'<a href="{s2}.html">{e(n)}</a>' for n, s2 in motos)
+    cidades = ", ".join(c["nome"] for c in CFG["cidades"])
+    outras = "".join(f'<a href="{s2}.html">{e(t)}</a>' for c2, s2, t, _ in CATS_ATIVAS if c2 != cat)
+    corpo = f'''<div class="hero"><div class="wrap"><span class="eyebrow" style="color:var(--road-muted)">Grande Vitória, ES</span>
+<h1>{e(titulo)} com entrega hoje na Grande Vitória</h1>
+<p>{len(xs)} peças: {e(inclui)}. Entrega por motoboy no mesmo dia em {e(cidades)}, para pedido até {CFG["corte_mesmo_dia"]}. Pagamento no Pix. Troca grátis em 7 dias se não servir.</p>
+<div><a class="btn" href="catalogo.html?tipo=moto&amp;cat={cat}">Filtrar por moto e preço</a></div></div></div>
+<section><div class="wrap">{f'<h2>Escolha pela moto</h2><div class="cats">{links_motos}</div>' if links_motos else ""}
+<h2{' style="margin-top:28px"' if links_motos else ""}>{e(titulo)}: peças em estoque</h2><div class="grid">{"".join(card(p) for p in vis)}</div>
+{f'<p class="note" style="margin-top:16px"><a href="catalogo.html?tipo=moto&amp;cat={cat}">Ver as {len(xs)} peças no catálogo</a></p>' if len(xs) > len(vis) else ""}</div></section>
+<section style="padding-top:0"><div class="wrap prose"><h2>Não achou a peça?</h2><p>Mande o modelo e o ano da moto no WhatsApp {e(CFG["whatsapp_exibir"])}. A gente confere na distribuidora e responde com o preço.</p>
+<h2 style="margin-top:28px">Outros tipos de peça</h2><div class="cats">{outras}</div></div></section>'''
+    ld = [{"@context": "https://schema.org", "@type": "ItemList", "name": titulo,
+           "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{URL}/{p['url']}", "name": p["nome"]} for i, p in enumerate(vis)]},
+          {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+              {"@type": "ListItem", "position": 1, "name": "Início", "item": URL + "/"},
+              {"@type": "ListItem", "position": 2, "name": titulo}]}]
+    pagina(f"{sl}.html", f"{titulo} em Vitória, Vila Velha e Serra | Entrega hoje | Loja Dias",
+           f"{titulo}: {inclui}. {len(xs)} peças com preço no Pix e entrega por motoboy hoje em {cidades}.", corpo, ld)
 
 def pagina_moto(nome, sl, fams, marca, ps):
     proprias = pecas_da_moto(ps, fams)
@@ -1005,7 +1119,7 @@ def trocas():
 
 def extras(ps):
     hoje = date.today().isoformat()
-    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html", "trocas.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [p["url"] for p in ps]
+    urls = ["", "pedido.html" if VITRINE else "catalogo.html", "entrega.html", "trocas.html"] + (["indique.html"] if IND and not VITRINE else []) + [f"entrega-{c['slug']}.html" for c in CFG["cidades"]] + [f"{sl}.html" for _, sl, _, _ in MOTOS_ATIVAS] + [f"{sl}.html" for _, sl, _, _ in CATS_ATIVAS] + [p["url"] for p in ps]
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{URL}/{u}</loc><lastmod>{hoje}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (DIST / "robots.txt").write_text(f"User-agent: *\nDisallow: /carrinho.html\nDisallow: /minha-conta.html\nDisallow: /admin.html\nDisallow: /moderar.html\nDisallow: /_artifact_index.html\nSitemap: {URL}/sitemap.xml\n", encoding="utf-8")
@@ -1051,6 +1165,7 @@ def main():
     SO_MOTO = SO_MOTO and not TEM_CARRO  # chegou peça de carro: textos e filtros voltam a falar de moto e carro
     VITRINE = not ps
     AVAL = AVAL and not VITRINE
+    CATS_ATIVAS[:] = [(c, *CAT_PAGINA[c]) for c in CAT_PAGINA if len([p for p in ps if p["tipo"] == "moto" and p["categoria"] == c]) >= 5]
     MOTOS_ATIVAS[:] = [m for m in MOTOS if len([p for p in pecas_da_moto(ps, m[2]) if p["categoria"] != "kit"]) >= 3]
     venda = [p for p in ps if not p.get("encomenda")]  # a capa só mostra peça com estoque
     home(venda); home(venda, artifact=True); entrega(); privacidade(); creditos(); trocas(); carro()
@@ -1065,6 +1180,7 @@ def main():
     for p in ps: produto(p, ps)
     for c in CFG["cidades"]: cidade(c, ps)
     for n, sl, fams, marca in MOTOS_ATIVAS: pagina_moto(n, sl, fams, marca, ps)
+    for cat, sl, t, inc in CATS_ATIVAS: pagina_categoria(cat, sl, t, inc, [p for p in ps if not p.get("encomenda")])
     extras(ps)
     # ícone do site (Luan 25/11): aba do navegador, atalho no celular e resultado do Google
     shutil.copy(RAIZ / "favicon.ico", DIST / "favicon.ico")
