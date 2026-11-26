@@ -504,3 +504,9 @@ footer{background:#1a1a1a}
 .kitselo.encselo{background:var(--ink);color:#fff}
 .add.enc{background:var(--wa);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .encnota{background:var(--gold-soft);border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px}
+.pixquem dd small{display:block;font-weight:500;font-size:13px;color:var(--muted)}
+.pixquem{grid-template-columns:auto minmax(0,1fr);align-items:baseline}
+.pixquem{display:block}
+.pixquem dt{font-size:13px;margin-top:8px}
+.pixquem dt:first-child{margin-top:0}
+.pixquem dd{font-size:16px;letter-spacing:.2px}
