@@ -24,23 +24,28 @@ const COR = { novo: "#C62828", pix_caiu: "#1565C0", saiu: "#EF6C00", entregue: "
 // próximo passo, pelo que já aconteceu com o pedido
 const pago = o => !!o.pago_em || o.status === "pix_caiu";
 const saiu = o => o.status === "saiu" || (Array.isArray(o.historico) && o.historico.some(h => h && h.s === "saiu"));
-const sinalDe = o => (o.pagamento === "entrega" && C.entrega_limite && C.entrega_sinal && Number(o.total) > C.entrega_limite) ? Math.min(C.entrega_sinal, Number(o.total)) : 0;
+// Luan 26/11: Pix na entrega desligado (C.na_entrega false). Pedido que ainda diz "entrega" (forjado ou antigo) vira Pix antes.
+const ENT_OK = !!C.na_entrega;
+const naEnt = o => ENT_OK && o.pagamento === "entrega";
+const entForjada = o => !ENT_OK && o.pagamento === "entrega";
+const sinalDe = o => (naEnt(o) && C.entrega_limite && C.entrega_sinal && Number(o.total) > C.entrega_limite) ? Math.min(C.entrega_sinal, Number(o.total)) : 0;
 function proximo(o) {
   if (!["novo", "pix_caiu", "saiu"].includes(o.status)) return null;
   if (o.entrega === "retirada") return pago(o) ? "entregue" : "pix_caiu";
-  if (o.pagamento !== "entrega") return !pago(o) ? "pix_caiu" : !saiu(o) ? "saiu" : "entregue";
+  if (!naEnt(o)) return !pago(o) ? "pix_caiu" : !saiu(o) ? "saiu" : "entregue";
   return !saiu(o) ? "saiu" : !pago(o) ? "pix_caiu" : "entregue";
 }
 // o que o Luan faz agora, em uma frase
-function agora(o) {
-  const nx = proximo(o), t = brl(o.total), sn = sinalDe(o);
+function agora(o, k) {
+  // valor que não bate: a frase usa o valor certo pelo catálogo, não o que veio do celular do cliente
+  const nx = proximo(o), sn = sinalDe(o), t = k && !k.confere && k.conhecido ? `${brl(k.esperado)} (o pedido diz ${brl(o.total)})` : brl(o.total);
   if (o.status === "entregue") return "Pronto. Pedido entregue.";
   if (o.status === "cancelado") return "Pedido cancelado.";
   if (o.status === "troca") return "Combine a troca com o cliente no WhatsApp.";
   if (nx === "pix_caiu" && o.entrega === "retirada") return `Veja no banco se caiu o Pix de ${t}.`;
-  if (nx === "pix_caiu" && o.pagamento !== "entrega") return `Veja no app do banco se caiu o Pix de ${t}. Print não vale.`;
+  if (nx === "pix_caiu" && !naEnt(o)) return `Veja no app do banco se caiu o Pix de ${t}. Print não vale.`;
   if (nx === "pix_caiu") return `Na porta, o cliente faz o Pix${sn ? ` do resto, ${brl(Number(o.total) - sn)}` : ` de ${t}`}. Só entregue quando cair no banco.`;
-  if (nx === "saiu") return (o.pagamento === "entrega" ? (sn ? `Veja se caiu o sinal de ${brl(sn)}. ` : "O cliente paga na entrega. ") : "Pix recebido. ") + "Compre as peças na Real e mande o motoboy.";
+  if (nx === "saiu") return (naEnt(o) ? (sn ? `Veja se caiu o sinal de ${brl(sn)}. ` : "O cliente paga na entrega. ") : "Pix recebido. ") + "Compre as peças na Real e mande o motoboy.";
   if (nx === "entregue") return o.entrega === "retirada" ? "Quando o cliente buscar, marque entregue." : "Quando o motoboy entregar, marque entregue.";
   return "";
 }
@@ -63,12 +68,19 @@ function conferir(o) {
   const comissao = ref && IND ? Math.round(baseInd * IND.comissao * 100) / 100 : 0;
   const descPix = sub * (C.desconto_pix || 0);
   const cid = CID.find(c => c.slug === (o.cliente && o.cliente.cidade));
-  const freteCat = o.entrega === "retirada" || !cid ? 0 : (sub >= (cid.gratis_acima || C.frete_gratis_acima || Infinity) ? 0 : cid.normal);
+  const CR = C.carro, ps = linhas.filter(l => l.p);
+  const carro = !!CR && ps.some(l => l.p.tipo === "carro");
+  const fior = !!CR && (ps.some(l => l.p.fiorino) || ps.reduce((a, l) => a + (l.p.kg || 0) * l.q, 0) > (CR.fiorino_kg || Infinity));
+  const freteCat = o.entrega === "retirada" || !cid ? 0
+    : fior ? (CR.fiorino[cid.slug] || 0)
+    : carro ? (sub >= CR.gratis_acima ? 0 : (CR.frete[cid.slug] || 0))
+    : (sub >= (cid.gratis_acima || C.frete_gratis_acima || Infinity) ? 0 : cid.normal);
   const sem = Math.round((sub - descPix - descInd) * 100) / 100, com = Math.round((sem + freteCat) * 100) / 100;
   // o 6º pedido (fidelidade) pode vir sem frete: só aceita "sem frete" se o cliente tinha conta
-  const aceitos = o.uid ? [com, sem] : [com];
+  const aceitos = o.uid && !fior ? [com, sem] : [com];
   const confere = conhecido && aceitos.some(v => Math.abs(v - Number(o.total)) < 0.011);
-  return { linhas, sub, freteCat, esperado: com, confere, conhecido, ref, descInd, comissao };
+  const semFrete = confere && freteCat > 0 && Math.abs(sem - Number(o.total)) < 0.011;  // tirou o frete: Luan confere se é o 6º pedido
+  return { linhas, sub, freteCat, esperado: com, confere, conhecido, ref, descInd, comissao, semFrete };
 }
 
 // códigos para comprar na Real: kit vira as peças dele
@@ -99,15 +111,17 @@ function cartao(o) {
   const hist = Array.isArray(o.historico) ? o.historico.filter(h => h && typeof h === "object") : [];
   const nf = o.nf && typeof o.nf === "object" ? o.nf : null;
   const cnpj = nf ? so(nf.cnpj).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : "";
-  const pagTxt = o.pagamento === "entrega" ? (sn ? `Sinal de ${brl(sn)} no Pix + resto na entrega` : "Pix na entrega") : "Pix antes de sair";
+  const pagTxt = entForjada(o) ? "Pix antes de sair (o pedido pedia entrega, a loja não aceita)" : naEnt(o) ? (sn ? `Sinal de ${brl(sn)} no Pix + resto na entrega` : "Pix na entrega") : "Pix antes de sair";
   return `<article class="pcard st-${esc(o.status)}" data-id="${esc(o.txid)}">
   <div class="ptop">${chip(o.status)}<span class="note">${fmt(o.criado)}</span></div>
   <div class="pnome"><b>${esc(cli.nome) || "(sem nome)"}</b><b class="pval">${brl(o.total)}</b></div>
   <div class="pitens">${k.linhas.map(({ i, p, q }) => `<div>${q}x ${esc(p ? p.nome : i.nome)}</div>`).join("")}</div>
   ${k.confere ? "" : `<p class="palerta">⚠ O valor não bate com os preços da loja (o certo seria ${k.conhecido ? brl(k.esperado) : "?"}). Confira com o cliente antes.</p>`}
   ${nf ? `<p class="pinfo">🧾 Pediu nota fiscal (veja em Detalhes)</p>` : ""}
-  <p class="pagora">${esc(agora(o))}</p>
-  ${nx ? `<button class="btn pbig" data-st="${nx}">${esc(BOTAO[nx])}</button>` : ""}
+  ${entForjada(o) ? `<p class="palerta">⚠ Pedido diz pagar na entrega, mas a loja não aceita. Exija o Pix antes.</p>` : ""}
+  ${k.semFrete ? `<p class="palerta">⚠ Veio sem frete. Confira se é o 6º pedido do cliente (fidelidade).</p>` : ""}
+  <p class="pagora">${esc(agora(o, k))}</p>
+  ${nx ? `<button class="btn pbig" data-st="${nx}"${k.confere ? "" : ` data-confirma="O valor não bate com os preços da loja. O certo seria ${k.conhecido ? brl(k.esperado) : "?"}. Marcar mesmo assim?"`}>${esc(BOTAO[nx])}</button>` : ""}
   <div class="pacts">${wa ? `<a class="btn wa" href="${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}${mapa ? `<a class="btn ghost" href="${mapa}" target="_blank" rel="noopener">Mapa</a>` : ""}</div>
   <details class="pmais"><summary>Detalhes</summary>
     <div class="pbloco"><span class="lbl">Cliente</span>${esc(cli.nome)}${tel ? ` · ${esc(cli.telefone)}` : ""}<br>${onde}<br>Pagamento: ${esc(pagTxt)}<br>Pedido <span class="mono">${esc(o.txid)}</span>${o.origem === "whatsapp" ? " (lançado à mão)" : ""}</div>
@@ -192,7 +206,7 @@ box.addEventListener("click", async e => {
   const a = e.target.closest("[data-aba]"); if (a) { filtro = a.dataset.aba; return desenhar(); }
   const c = e.target.closest("[data-copia]"); if (c) return copiar(c.dataset.copia, c);
   const card = e.target.closest(".pcard");
-  const s = e.target.closest("[data-st]"); if (s && card) { s.disabled = true; return mudar(card.dataset.id, s.dataset.st); }
+  const s = e.target.closest("[data-st]"); if (s && card) { if (s.dataset.confirma && !confirm(s.dataset.confirma)) return; s.disabled = true; return mudar(card.dataset.id, s.dataset.st); }
   const ob = e.target.closest("[data-salva-obs]");
   if (ob && card) { ob.textContent = "Salvando…";
     try { await setDoc(doc(db, "vendas", card.dataset.id), { obs: card.querySelector("[data-obs]").value.slice(0, 500), atualizado: serverTimestamp() }, { merge: true }); }
@@ -231,7 +245,7 @@ function formManual() {
     <label class="lbl">WhatsApp</label><input id="mtel" type="tel" maxlength="20">
     <label class="lbl">Cidade</label><select id="mcid"><option value="retirada">Retirada na loja</option>${cid}</select>
     <label class="lbl">Endereço</label><input id="mend" maxlength="200">
-    <label class="lbl">Pagamento</label><select id="mpag"><option value="pix">Pix antes</option><option value="entrega">Pix na entrega</option></select>
+    <label class="lbl">Pagamento</label><select id="mpag"><option value="pix">Pix antes</option>${ENT_OK ? `<option value="entrega">Pix na entrega</option>` : ""}</select>
     <label class="lbl">Peças: um código por linha, com a quantidade (ex.: CPR8EA9 2)</label><textarea id="mitens" rows="4"></textarea>
     <p class="err" id="merr" hidden></p><div class="note" id="mtot"></div>
     <div class="pbar"><button class="btn" id="mok">Salvar pedido</button><button class="btn ghost" id="mx">Fechar</button></div></div>`;
