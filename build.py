@@ -854,7 +854,17 @@ def admin():
     corpo = css + '''<section><div class="wrap prose painel"><h1>Pedidos da loja</h1><div id="admin"><p class="note">Carregando…</p></div></div></section>'''
     out = head("Pedidos | Loja Dias", "Tela da loja.", "admin.html").replace("<title>", '<meta name="robots" content="noindex,nofollow"><title>', 1) \
         + '<header class="top"><div class="wrap"><a class="logo" href="index.html">Loja <span>Dias</span> Peças</a></div></header>' + "<main>" + corpo + "</main>" + rodape().replace('<script type="module" src="assets/conta.js"></script>', '<script type="module" src="assets/admin.js"></script>')
+    # app do painel (26/11): ícone próprio "Vendas" que abre direto no painel, não na loja
+    out = out.replace('<link rel="manifest" href="site.webmanifest">', '<link rel="manifest" href="painel.webmanifest">', 1) \
+             .replace('<link rel="apple-touch-icon" href="img/apple-touch-icon.png">', '<link rel="apple-touch-icon" href="img/painel-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Vendas Loja Dias">', 1) \
+             .replace("</body>", '<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("painel-sw.js", { scope: "./admin" }).catch(function(){});</script></body>', 1)
     (DIST / "admin.html").write_text(out, encoding="utf-8")
+    (DIST / "painel.webmanifest").write_text(json.dumps({"id": "./admin.html", "name": "Vendas Loja Dias", "short_name": "Vendas", "start_url": "./admin.html",
+        "scope": "./admin", "display": "standalone", "orientation": "portrait", "background_color": "#002776", "theme_color": "#002776",
+        "icons": [{"src": "img/painel-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                  {"src": "img/painel-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]}, ensure_ascii=False), encoding="utf-8")
+    # service worker mínimo: não guarda nada (pedido sempre ao vivo), só deixa o Chrome instalar como app
+    (DIST / "painel-sw.js").write_text('self.addEventListener("install",()=>self.skipWaiting());self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));self.addEventListener("fetch",()=>{});\n', encoding="utf-8")
 
 def moderar():
     corpo = '''<section><div class="wrap prose" style="max-width:860px"><h1>Avaliações para conferir</h1><div id="moderar"><p class="note">Carregando…</p></div></div></section>'''
