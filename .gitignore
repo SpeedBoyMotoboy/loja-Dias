@@ -6,3 +6,5 @@ firestore.rules
 dados/fora_sem_moto.txt
 dados/pausados.csv
 dados/varredura.txt
+ml_app.json
+ml_token.json
