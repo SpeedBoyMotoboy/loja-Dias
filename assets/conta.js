@@ -3,7 +3,7 @@
 // (regras em firestore.rules). Não guarda senha, cartão nem dado de pagamento.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, reauthenticateWithPopup, signOut, deleteUser, onAuthStateChanged, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, connectFirestoreEmulator, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const C = window.LOJA.config;
@@ -68,7 +68,11 @@ async function apagarConta() {  // LGPD: apaga histórico, perfil e o login
     for (const d of av.docs) { for (let i = 0; i < 4; i++) await deleteDoc(doc(db, "avaliacoes", d.id, "fotos", String(i))).catch(() => {}); await deleteDoc(d.ref); }
   } catch (e) {}
   try { await deleteUser(user); }
-  catch (e) { if (e.code === "auth/requires-recent-login") { await reauthenticateWithPopup(user, new GoogleAuthProvider()); await deleteUser(auth.currentUser); } else throw e; }
+  catch (e) {
+    if (e.code !== "auth/requires-recent-login") throw e;
+    if (!user.providerData.some(x => x.providerId === "google.com")) throw new Error("Por segurança, saia, entre de novo pelo link do e-mail e apague a conta em seguida.");
+    await reauthenticateWithPopup(user, new GoogleAuthProvider()); await deleteUser(auth.currentUser);
+  }
 }
 // Painel de pedidos (25/11): todo pedido do carrinho vai para vendas/{txid}, com ou sem login. Só a loja lê.
 // Se a internet cair na hora, fica guardado neste aparelho e tenta de novo na próxima página aberta.
@@ -103,6 +107,20 @@ async function registrarVenda(pd) {
 setTimeout(() => { const v = lsG(); if (v && v.txid) gravarVenda(v).then(() => lsS(null), e => { if (e && e.code === "permission-denied") lsS(null); }); }, 1500);
 window.LojaConta = { salvarPedido, registrarVenda, freteFidelidade, get user() { return user; }, get perfil() { return perfil; }, get pedidos() { return nPedidos; } };
 
+// Login por link no e-mail (Luan 26/11): sem senha, funciona também dentro do WhatsApp e do Instagram
+const EMAIL_KEY = "dias-email-login";
+const linkUrl = () => location.origin + location.pathname;
+if (C.login_email && isSignInWithEmailLink(auth, location.href)) {
+  const finalizar = async email => {
+    try { await signInWithEmailLink(auth, email, location.href); try { localStorage.removeItem(EMAIL_KEY); } catch (e) {} history.replaceState(null, "", linkUrl()); }
+    catch (e) { window.__diasLinkPendente = null; window.__diasLinkErro = e.code === "auth/invalid-action-code" || e.code === "auth/expired-action-code" ? "Esse link já foi usado ou venceu. Peça um novo abaixo." : "Não deu para entrar com esse link. Confira o e-mail e peça um novo.";
+      history.replaceState(null, "", linkUrl()); document.dispatchEvent(new CustomEvent("loja-conta", { detail: { user: null, perfil: null } })); }
+  };
+  let em = null; try { em = localStorage.getItem(EMAIL_KEY); } catch (e) {}
+  if (em) finalizar(em); else window.__diasLinkPendente = finalizar;  // aberto em outro aparelho: pede o e-mail de novo
+}
+const appInterno = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(navigator.userAgent);
+
 // botão no topo
 const btn = $("#contalink");
 onAuthStateChanged(auth, async u => {
@@ -128,11 +146,42 @@ if (box) {
   const cidades = C.cidades.map(c => `<option value="${c.slug}">${c.nome}</option>`).join("");
   const render = async () => {
     if (!user) {
-      box.innerHTML = `<p>Entre com sua conta Google para salvar o endereço e ver seus pedidos. A loja não vê sua senha. Conta é opcional: dá para comprar sem ela.</p>
-        <button class="btn" type="button" id="glogin">Entrar com Google</button><p class="err" id="cerr" hidden></p>`;
-      $("#glogin").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { $("#cerr").hidden = false; $("#cerr").textContent = "Não deu para entrar. Tente de novo."; });
+      const pend = !!window.__diasLinkPendente;
+      box.classList.add("login");
+      box.innerHTML = `<div class="lgtopo"><h2>${pend ? "Confirme seu e-mail" : "Entre para comprar mais rápido"}</h2>
+        <p>${pend ? "Você abriu o link em outro aparelho. Digite o mesmo e-mail para terminar de entrar." : "Conta é opcional. Dá para comprar sem ela."}</p></div>
+        ${pend ? "" : `<ul class="lgvant"><li>Endereço e WhatsApp já preenchidos no carrinho</li><li>Seus pedidos guardados num lugar só</li><li>A cada 5 pedidos pagos, o 6º sai com frete grátis</li><li>Aviso no WhatsApp na hora de trocar o óleo, se você quiser</li></ul>`}
+        ${appInterno && !pend ? `<p class="lgaviso">Você está dentro do WhatsApp ou do Instagram, e o Google não deixa entrar por aqui. ${C.login_email ? "Use seu e-mail abaixo, ou abra o site no Chrome." : "Toque nos três pontinhos e escolha abrir no Chrome."}</p>` : ""}
+        ${pend ? "" : `<button class="btn gbtn" type="button" id="glogin"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.9-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6C6.6 42.6 14.6 48 24 48z"/></svg>Entrar com Google</button>`}
+        ${C.login_email ? `${pend ? "" : `<div class="lgou"><span>ou entre com seu e-mail</span></div>`}
+          <form id="eform" class="lgemail" novalidate><label class="lbl" for="email">Seu e-mail</label>
+          <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="voce@gmail.com" required>
+          <button class="btn dark" type="submit" id="esend">${pend ? "Entrar" : "Receber link para entrar"}</button></form>
+          <p class="note" id="eok" hidden></p>` : ""}
+        <p class="err" id="cerr" hidden></p>
+        <p class="lgseg">Sem senha para criar ou lembrar. A loja nunca vê sua senha do Google nem do e-mail. Guardamos só o que você preencher. <a href="privacidade.html">Privacidade</a></p>`;
+      const erro = m => { $("#cerr").hidden = false; $("#cerr").textContent = m; };
+      if (window.__diasLinkErro) { erro(window.__diasLinkErro); window.__diasLinkErro = null; }
+      if ($("#glogin")) $("#glogin").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+        if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+        erro(e.code === "auth/popup-blocked" ? "O navegador bloqueou a janela do Google. Permita pop-ups para lojadias.com.br e tente de novo." : appInterno ? "O Google não deixa entrar dentro deste app. Abra o site no Chrome ou use seu e-mail." : "Não deu para entrar com o Google. Tente de novo ou use seu e-mail.");
+      });
+      if ($("#eform")) $("#eform").onsubmit = async ev => {
+        ev.preventDefault(); $("#cerr").hidden = true;
+        const email = $("#email").value.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return erro("Digite um e-mail válido, como voce@gmail.com.");
+        $("#esend").disabled = true;
+        try {
+          if (pend) { await window.__diasLinkPendente(email); window.__diasLinkPendente = null; return; }
+          await sendSignInLinkToEmail(auth, email, { url: linkUrl(), handleCodeInApp: true });
+          try { localStorage.setItem(EMAIL_KEY, email); } catch (e) {}
+          $("#eform").hidden = true; $("#eok").hidden = false;
+          $("#eok").innerHTML = `Pronto. Mandamos um link para <b>${email.replace(/[<>&"]/g, "")}</b>. Abra seu e-mail e toque no link para entrar. Se não aparecer em 2 minutos, olhe no spam ou nas promoções.`;
+        } catch (e) { $("#esend").disabled = false; erro(e.code === "auth/too-many-requests" ? "Muitas tentativas. Espere alguns minutos e tente de novo." : "Não deu para mandar o link agora. Tente de novo ou entre com o Google."); }
+      };
       return;
     }
+    box.classList.remove("login");
     const p = perfil || await carregarPerfil();
     if (!p) {  // primeiro login: aceite da privacidade
       box.innerHTML = `<p>Antes de salvar seus dados, leia a <a href="privacidade.html" target="_blank">página de privacidade</a>. Guardamos só nome, WhatsApp, cidade, endereço e seus pedidos. Nada de CPF ou cartão.</p>
