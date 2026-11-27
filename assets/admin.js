@@ -73,7 +73,7 @@ function conferir(o) {
   const fior = !!CR && (ps.some(l => l.p.fiorino) || ps.reduce((a, l) => a + (l.p.kg || 0) * l.q, 0) > (CR.fiorino_kg || Infinity));
   const freteCat = o.entrega === "retirada" || !cid ? 0
     : fior ? (CR.fiorino[cid.slug] || 0)
-    : carro ? (sub >= CR.gratis_acima ? 0 : (CR.frete[cid.slug] || 0))
+    : carro ? (sub >= ((CR.gratis_cidade && CR.gratis_cidade[cid.slug]) || CR.gratis_acima) ? 0 : (CR.frete[cid.slug] || 0))
     : (sub >= (cid.gratis_acima || C.frete_gratis_acima || Infinity) ? 0 : cid.normal);
   const sem = Math.round((sub - descPix - descInd) * 100) / 100, com = Math.round((sem + freteCat) * 100) / 100;
   // o 6º pedido (fidelidade) pode vir sem frete: só aceita "sem frete" se o cliente tinha conta
