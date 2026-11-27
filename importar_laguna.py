@@ -70,7 +70,9 @@ def nome_peca(nome):
     t = unicodedata.normalize("NFC", t)
     for de, para in ABREV:
         t = re.sub(de, para, t)
-    t = re.sub(r"\b\w*\d\w*\b", lambda m: m.group(0).upper(), t.strip())  # 12V, H4, 5W30
+    t = re.sub(r"\b\w*\d\w*\b", lambda m: m.group(0).upper(), t.strip())
+    if re.match(r"(disco|filtro|cabo|tensor|amortecedor|rolamento|jogo|kit|reparo|elem)", t):  # nome masculino
+        t = re.sub(r"\bdianteira\b", "dianteiro", re.sub(r"\btraseira\b", "traseiro", t))  # 12V, H4, 5W30
     return t[:1].upper() + t[1:]
 
 
@@ -83,9 +85,28 @@ def carros(apl, n=2):
     return txt + (" e outros" if len(itens) > n else "")
 
 
+PRIMEIRO = [(r"^(retentor|mangueira|junta|kit bomba|bomba)", "motor"), (r"^(lampada|bobina)", "eletrica"), (r"^refil palheta", "palheta")]
+
+
 def categoria(nome, cat_laguna):
-    t = _n(nome + " " + cat_laguna)
-    return next((c for pat, c in CATS if re.search(pat, t)), "acessorio")
+    """Pelo nome primeiro (a Laguna põe retentor e mangueira dentro de FILTRO); a categoria dela só desempata."""
+    n = _n(nome).strip()
+    for pat, c in PRIMEIRO:
+        if re.search(pat, n):
+            return c
+    return next((c for pat, c in CATS if re.search(pat, n)), None) or \
+        next((c for pat, c in CATS if re.search(pat, _n(cat_laguna))), "acessorio")
+
+
+PREFIXO = {"F:": "https://fragaimages.blob.core.windows.net/", "A:": "https://authoparts.pecas.com.br/"}
+
+
+def imagem(u):
+    u = (u or "").strip()
+    for k, v in PREFIXO.items():
+        if u.startswith(k):
+            u = v + u[len(k):]
+    return u if re.search(r"\.(jpe?g|png|webp)$", u, re.I) else ""
 
 
 def ler_tsv(arqs):
@@ -124,7 +145,7 @@ def main():
         novos.append(dict(
             sku=sku, nome=f"{peca} {cs} {marca}".replace("  ", " ").strip(), tipo="carro", categoria=categoria(nome, col(r, "categoria")),
             marca=marca, veiculos=";".join(x.strip() for x in re.split(r"[;|]", apl) if x.strip()), preco="", custo=f"{custo:.2f}",
-            ml_medio="", estoque="10", imagem=col(r, "imagem_url"), descricao="", partes="", peso_kg=peso,
+            ml_medio="", estoque="10", imagem=imagem(col(r, "imagem_url")), descricao="", partes="", peso_kg=peso,
             fiorino="sim" if FIORINO.search(t) else "", encomenda="sim" if aviao else "", fornecedor="Laguna"))
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CAMPOS, extrasaction="ignore")
