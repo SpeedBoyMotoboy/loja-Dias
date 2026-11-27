@@ -43,12 +43,12 @@
   ],
   "fornecedor_principal": "Real Motopeças (ES)",
   "pix": {
-    "chave": "+5527999165959",
-    "nome": "RAQUEL ASSIS DA SILVA",
+    "chave": "46178859000196",
+    "nome": "LUAN VIEIRA DIAS",
     "cidade": "VILA VELHA",
-    "titular": "RAQUEL ASSIS DA SILVA",
+    "titular": "LUAN VIEIRA DIAS",
     "banco": "Banco Inter",
-    "_obs": "Luan 26/11 20h29: a chave é de conta Inter (CNPJ 69.872.769/0001-04, titular RAQUEL ASSIS DA SILVA). O site mostra o nome e o banco que o app do cliente vai mostrar, para bater. Nunca publicar agência e conta."
+    "_obs": "Luan 27/11: chave Pix = CNPJ da loja (46.178.859/0001-96), conta Inter em nome dele. O site mostra só o nome e o banco que o app do cliente mostra. Nunca publicar CPF, agência ou conta."
   },
   "fretes_confirmados": true,
   "cnpj": "46.178.859/0001-96",
