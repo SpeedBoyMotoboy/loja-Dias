@@ -173,10 +173,13 @@ def carregar():
         p["partes"] = [x for x in (r.get("partes") or "").split(";") if x]
         p["slug"] = slug(p["nome"] + " " + p["sku"])
         p["url"] = f"peca-{p['slug']}.html"
-        p["nome_real"], p["nome"] = p["nome"], nome_vitrine(p["nome"], p["categoria"])  # slug/URL continuam do nome original
-        # Pesquisa 25/11: as grandes lojas dão à peça o nome da moto e do ano; o código técnico vira detalhe.
-        p["nome"], p["spec"] = nome_por_moto(p["nome_real"], p["categoria"], veic, p["nome"])
-        p["fams"] = [f[0] for f in familias(veic)]
+        if p["tipo"] == "carro":  # peça da Laguna: o nome já vem pronto do importar_laguna.py (peça + carros + marca)
+            p["nome_real"], p["spec"], p["fams"] = p["nome"], "", []
+        else:
+            p["nome_real"], p["nome"] = p["nome"], nome_vitrine(p["nome"], p["categoria"])  # slug/URL continuam do nome original
+            # Pesquisa 25/11: as grandes lojas dão à peça o nome da moto e do ano; o código técnico vira detalhe.
+            p["nome"], p["spec"] = nome_por_moto(p["nome_real"], p["categoria"], veic, p["nome"])
+            p["fams"] = [f[0] for f in familias(veic)]
         p["marca"] = re.sub(r"\s+(INDUSTRIA|IND\.?|MOTO PE[CÇ]AS|LTDA)\b.*$", "", p["marca"], flags=re.I)  # 'POLIMET INDUSTRIA METALURGICA' -> 'POLIMET'
         if p["marca"].isupper() and len(p["marca"]) > 3:
             p["marca"] = p["marca"].title()

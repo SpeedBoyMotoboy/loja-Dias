@@ -85,7 +85,8 @@ def montar_kits(por):
                      "descricao": knome + f". Sai mais barato que comprar separado (R$ {soma:.2f}). Entrega por motoboy no mesmo dia na Grande Vitória."})
     return kits
 
-CAMPOS = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "ml_medio", "estoque", "imagem", "descricao", "partes"]
+CAMPOS = ["sku", "nome", "tipo", "categoria", "marca", "veiculos", "preco", "custo", "ml_medio", "estoque", "imagem", "descricao", "partes",
+          "peso_kg", "fiorino", "encomenda", "fornecedor"]  # 26/11: colunas do carro (Laguna); vazias nas peças de moto
 
 def so_kits():
     """Refaz só os kits em cima do dados/produtos.csv que já existe (sem precisar do CSV do robô)."""

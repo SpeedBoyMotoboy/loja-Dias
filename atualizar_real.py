@@ -47,7 +47,7 @@ def main():
     real = {}
     if "--delta" in sys.argv:
         for r in ler(RAIZ / "dados/produtos.csv") + ler(RAIZ / "dados/pausados.csv"):
-            if r["categoria"] != "kit":
+            if r["categoria"] != "kit" and r.get("tipo") != "carro":
                 real[r["sku"]] = (float(r["custo"] or 0), int(r["estoque"]) if str(r["estoque"]).isdigit() else None)
         for ln in open(sys.argv[sys.argv.index("--delta") + 1], encoding="utf-8"):
             p = ln.strip().split(";")
@@ -58,7 +58,9 @@ def main():
         if cod and cod not in real:
             est = (r.get("estoque") or "").strip()
             real[cod] = (numero(r.get("preco_custo") or r.get("custo") or "0"), int(est) if est.isdigit() else None)
-    pecas = [r for r in ler(RAIZ / "dados/produtos.csv") if r["categoria"] != "kit"]
+    todas = ler(RAIZ / "dados/produtos.csv")
+    carro = [r for r in todas if r.get("tipo") == "carro"]  # peças da Laguna: a varredura da Real não mexe nelas
+    pecas = [r for r in todas if r["categoria"] != "kit" and r.get("tipo") != "carro"]
     kits_antes = {r["sku"]: r for r in ler(RAIZ / "dados/produtos.csv") if r["categoria"] == "kit"}
     pausados = ler(RAIZ / "dados/pausados.csv")
     achadas = [r for r in pecas if r["sku"] in real]
@@ -98,7 +100,7 @@ def main():
     kits_fora = sorted(set(kits_antes) - {k["sku"] for k in kits})
     muda_kit = [f'{k["sku"]}: R$ {float(kits_antes[k["sku"]]["preco"]):.2f} -> R$ {float(k["preco"]):.2f}'
                 for k in kits if k["sku"] in kits_antes and abs(float(k["preco"]) - float(kits_antes[k["sku"]]["preco"])) >= 0.01]
-    gravar(RAIZ / "dados/produtos.csv", kits + fica)
+    gravar(RAIZ / "dados/produtos.csv", kits + fica + carro)
     gravar(RAIZ / "dados/pausados.csv", list(novos_paus.values()))
     rel.append(f"Peças no site: {len(fica)} + {len(kits)} kits. Conferidas na Real: {len(achadas)}.")
     if sai:
