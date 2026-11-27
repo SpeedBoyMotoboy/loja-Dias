@@ -14,31 +14,31 @@
       "nome": "Vitória",
       "slug": "vitoria",
       "normal": 10,
-      "gratis_acima": 49.9
+      "gratis_acima": null
     },
     {
       "nome": "Vila Velha",
       "slug": "vila-velha",
       "normal": 10,
-      "gratis_acima": 49.9
+      "gratis_acima": null
     },
     {
       "nome": "Serra",
       "slug": "serra",
       "normal": 15,
-      "gratis_acima": 89.9
+      "gratis_acima": null
     },
     {
       "nome": "Cariacica",
       "slug": "cariacica",
       "normal": 10,
-      "gratis_acima": 49.9
+      "gratis_acima": null
     },
     {
       "nome": "Viana",
       "slug": "viana",
       "normal": 15,
-      "gratis_acima": 89.9
+      "gratis_acima": null
     }
   ],
   "fornecedor_principal": "Real Motopeças (ES)",
@@ -52,7 +52,7 @@
   },
   "fretes_confirmados": true,
   "cnpj": "46.178.859/0001-96",
-  "frete_gratis_acima": 49.9,
+  "frete_gratis_acima": 0,
   "entrega_ate": "18h",
   "so_moto": true,
   "firebase": {
@@ -103,5 +103,7 @@
     },
     "fiorino_kg": 20,
     "_obs": "Mesa Pauta 6/6B (ATA 26/11 19h26) + Luan 26/11 19h27 (Fiorino R$ 50/60). Pedido com peça de carro usa o frete de carro (misto também). Fiorino: peça com coluna fiorino=sim no produtos.csv ou carrinho acima de fiorino_kg (coluna peso_kg); sem frete grátis e Pix 100% antecipado. Carro: placa conferida no WhatsApp antes do Pix; mesmo dia só de segunda a sexta (sábado chega segunda até 14h)."
-  }
+  },
+  "addon_min": 49.9,
+  "_obs_frete": "Luan 26/11 23h15: frete grátis de moto desligado até fechar o custo do motoboy (R$ 25 a R$ 70 por entrega)."
 }

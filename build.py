@@ -518,7 +518,7 @@ def black_friday(ps, destaque):
     banner = (f'<img class="bfimg" src="img/banner-black-friday.webp" alt="" width="1920" height="480">'
               if (RAIZ / "img/banner-black-friday.webp").exists() else "")
     return f'''<section class="bf" aria-labelledby="bft"><div class="wrap">{banner}
-<div class="bfhead"><h2 id="bft">Black Friday</h2><p>Sem preço inflado para fingir desconto. {", ".join(fatos) + ". " if fatos else ""}Frete grátis acima de {brl(GRATIS)} e entrega hoje para pedido até {CFG["corte_mesmo_dia"]}.</p></div>
+<div class="bfhead"><h2 id="bft">Black Friday</h2><p>Sem preço inflado para fingir desconto. {", ".join(fatos) + ". " if fatos else ""}{("Frete grátis acima de " + brl(GRATIS) + " e e") if GRATIS else "E"}ntrega hoje para pedido até {CFG["corte_mesmo_dia"]}.</p></div>
 <div class="grid">{"".join(card(p) for p in kits)}{"".join(card(p) for p in extra)}</div>
 <p><a class="btn" href="catalogo.html?cat=kit">Ver todos os kits</a></p></div></section>'''
 
@@ -889,7 +889,7 @@ def pagina_moto(nome, sl, fams, marca, ps):
     ld = [{"@context": "https://schema.org", "@type": "ItemList", "name": f"Peças para {marca} {nome}",
            "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{URL}/{p['url']}", "name": p["nome"]} for i, p in enumerate(kits + proprias)]}]
     pagina(f"{sl}.html", f"Peças para {marca} {nome} com entrega hoje na Grande Vitória | Loja Dias",
-           f"Peças para {marca} {nome}: {lista}. Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana. Frete grátis acima de {brl(GRATIS)}.",
+           f"Peças para {marca} {nome}: {lista}. Entrega por motoboy no mesmo dia em Vitória, Vila Velha, Serra, Cariacica e Viana." + (f" Frete grátis acima de {brl(GRATIS)}." if GRATIS else ""),
            corpo, ld)
 
 def indique(ps):
@@ -1136,6 +1136,7 @@ def extras(ps):
     cfg["ads"] = {"id": CFG.get("google_ads_id", ""), "label": CFG.get("google_ads_label", "")}
     cfg["ga"] = CFG.get("ga4_id", "")
     cfg["frete_gratis_acima"] = GRATIS
+    cfg["addon_min"] = CFG.get("addon_min") or GRATIS
     cfg["na_entrega"] = NA_ENTREGA
     cfg["antecipado"] = ANTECIPADO if ANTECIPADO < 10**9 else 0
     cfg["entrega_limite"] = CFG.get("entrega_limite", 0); cfg["entrega_sinal"] = CFG.get("entrega_sinal", 0)
