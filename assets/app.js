@@ -86,6 +86,7 @@
   const limMax = Math.max(...C.cidades.map(c=>c.gratis_acima||C.frete_gratis_acima||0));
   // Carro (Mesa Pauta 6/6B): pedido com peça de carro usa o frete de carro; peça grande ou carrinho pesado vai de Fiorino
   const CR = C.carro || null;
+  const crG = slug => (CR && CR.gratis_cidade && slug && CR.gratis_cidade[slug]) || (CR && CR.gratis_acima);
   const temCarro = its => !!CR && its.some(i=>i.p.tipo==="carro");
   const vaiFiorino = its => !!CR && (its.some(i=>i.p.fiorino) || its.reduce((a,i)=>a+(i.p.kg||0)*i.q,0) > (CR.fiorino_kg||Infinity));
   for(const s of Object.keys(cart)){ const q = P.find(p=>p.sku===s); if(q && q.enc) delete cart[s]; }  // encomenda não vai para o carrinho
@@ -149,7 +150,7 @@
     const upd = () => { const c = C.cidades.find(x=>x.slug===shipSel.value);
       if(c && CR && pp && pp.tipo==="carro"){
         out.innerHTML = pp.fiorino ? `Peça grande, vai de Fiorino: frete <b>${brl(CR.fiorino[c.slug])}</b>, sem frete grátis. Pix antes da entrega.`
-          : `Frete de carro: <b>${brl(CR.frete[c.slug])}</b> (grátis a partir de ${brl(CR.gratis_acima)}). Entrega no mesmo dia de segunda a sexta, para pedido até ${C.corte_mesmo_dia}.`;
+          : `Frete de carro: <b>${brl(CR.frete[c.slug])}</b> (grátis a partir de ${brl(crG(c.slug))}). Entrega no mesmo dia de segunda a sexta, para pedido até ${C.corte_mesmo_dia}.`;
         return; }
       out.innerHTML = c ? `Frete: <b>${brl(c.normal)}</b>${(c.gratis_acima||C.frete_gratis_acima)?` (grátis a partir de ${brl(c.gratis_acima||C.frete_gratis_acima)})`:""}. Pedido até ${C.corte_mesmo_dia}: entrega até as ${C.entrega_ate} do mesmo dia. Depois disso, no dia seguinte.` : "Escolha a cidade para ver o frete."; };
     shipSel.addEventListener("change", upd); upd();
@@ -173,7 +174,7 @@
       const payEl = $('input[name="pay"]:checked'), naEntrega = !!(payEl && payEl.value==="entrega");
       const ship = $('input[name="ship"]:checked').value;
       const city = C.cidades.find(c=>c.slug===$("#city").value);
-      const lim = fior ? null : carro ? CR.gratis_acima : city ? (city.gratis_acima||C.frete_gratis_acima) : null;
+      const lim = fior ? null : carro ? crG(city&&city.slug) : city ? (city.gratis_acima||C.frete_gratis_acima) : null;
       const fidel = !fior && !!(window.LojaConta && window.LojaConta.freteFidelidade && window.LojaConta.freteFidelidade());
       const gratis = !fior && (fidel || !!(lim && sub>=lim));
       const base = city ? (fior ? CR.fiorino[city.slug] : carro ? CR.frete[city.slug] : city[ship==="retirada"?"normal":ship]) : null;

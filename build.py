@@ -236,7 +236,7 @@ def head(title, desc, path, extra_ld=None, artifact=False):
 
 def topo():
     demo = '<div class="demo">Prévia: peças, preços e fretes são exemplos. O catálogo real virá das distribuidoras.</div>' if DEMO else ""
-    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} <span class="demo2">(Serra e Viana: <span class="pc">acima de </span>R$ 89,90)</span></div>' if GRATIS and FRETE_OK else ""
+    faixa = f'<div class="demo">Frete grátis acima de {brl(GRATIS)} <span class="demo2">(Serra e Viana: <span class="pc">acima de </span>{brl(max(c.get("gratis_acima") or 0 for c in CFG["cidades"]))})</span></div>' if GRATIS and FRETE_OK else ""
     return f'''{demo}{faixa}<header class="top"><div class="wrap">
 <a class="logo" href="index.html">Loja <span>Dias</span> Peças</a>
 <nav class="nav" aria-label="Principal">{f'<a href="{lk("moto")}">Peças de moto</a><a href="{lk("carro")}">Carro</a>' if VITRINE and not SO_MOTO else ""}{f'<a class="indlink" href="indique.html">Indique e ganhe <em>{round(IND["comissao"]*100)}%</em></a>' if IND and not VITRINE else ""}
@@ -387,7 +387,7 @@ def card(p, foco=()):
     if kit:
         sub = p.get("conteudo") or f'{len(kit)} peças no kit'
     # Mesa 25/11: kit de R$ 55+ vende pelo frete grátis, não pelos poucos reais de economia
-    if kit and p["preco"] >= 55 and GRATIS:
+    if kit and GRATIS and p["preco"] >= GRATIS:
         selo_kit = f'<span class="kitselo">{"Frete grátis + entrega hoje" if p["preco"] >= GRATIS_TODAS else "Frete grátis em Vitória, VV e Cariacica"}</span>'
     else:
         selo_kit = f'<span class="kitselo">Economize {brl(p["economia"])}</span>' if kit and p["economia"] > 0 else ""
@@ -432,12 +432,12 @@ def tabela_frete():
         rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>mesmo dia</td><td>informado no pedido</td></tr>' for c in CFG["cidades"])
         return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Prazo</th><th>Frete</th></tr></thead><tbody>{rows}</tbody></table></div>'
     rows = "".join(f'<tr><td><a href="entrega-{c["slug"]}.html">{e(c["nome"])}</a></td><td>{brl(c["normal"])}</td><td>{brl(c.get("gratis_acima") or GRATIS) if GRATIS else "—"}</td><td>até {CFG["entrega_ate"]} do mesmo dia</td></tr>' for c in CFG["cidades"])
-    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Grátis acima de</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana.</p>' if GRATIS else "")
+    return f'<div class="tablebox"><table><thead><tr><th>Cidade</th><th>Frete</th><th>Grátis acima de</th><th>Prazo</th></tr></thead><tbody>{rows}</tbody></table></div>' + (f'<p class="note"><b>Frete grátis</b> a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de {brl(max(c.get("gratis_acima") or 0 for c in CFG["cidades"]))} em Serra e Viana.</p>' if GRATIS else "")
 
 FAQ = [
  ("Vocês entregam no mesmo dia?", f"Sim. Pedidos confirmados até {CFG['corte_mesmo_dia']} chegam até as {CFG['entrega_ate']} do mesmo dia em toda a Grande Vitória. Pedidos depois desse horário chegam no dia seguinte."),
  ("Como sei se a peça serve na minha moto ou carro?", "Informe o modelo e o ano do veículo. Se ficar em dúvida, mande o modelo, o ano e uma foto da peça antiga no WhatsApp que a gente confere antes de enviar."),
- ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de R$ 89,90 em Serra e Viana." if GRATIS else "Não no momento."),
+ ("Tem frete grátis?", f"Sim. Frete grátis a partir de {brl(GRATIS)} em Vitória, Vila Velha e Cariacica, e a partir de {brl(max(c.get("gratis_acima") or 0 for c in CFG["cidades"]))} em Serra e Viana." if GRATIS else "Não no momento."),
  ("Quais formas de pagamento?", ("Pix. Você pode pagar na hora, com o Pix copia e cola do pedido, ou pagar no Pix quando o motoboy chegar. Na entrega, o motoboy só entrega a peça depois que o Pix cai na conta da loja. Leva menos de um minuto. Pedido acima de R$ 150 paga um sinal de R$ 15 no Pix na hora do pedido, e o resto na entrega. Peça de R$ 250 ou mais é paga no Pix antes." if NA_ENTREGA else f"Pix na hora do pedido. O carrinho mostra o Pix copia e cola com o valor exato. No app do seu banco o recebedor aparece como {CFG['pix'].get('titular', '').title().replace(' Da ', ' da ').replace(' De ', ' de ').replace(' Dos ', ' dos ')} ({CFG['pix'].get('banco', '')}), que é a conta da loja. Você paga e manda o comprovante no WhatsApp. A peça sai para entrega assim que o Pix cai na conta da loja.")),
  ("E se a peça vier errada?", "Se não servir, o motoboy busca e troca. Peça sem uso e na embalagem tem troca garantida em até 7 dias."),
  ("A peça tem garantia?", "Sim. Toda peça é nova e tem garantia de 90 dias contra defeito de fabricação."),
