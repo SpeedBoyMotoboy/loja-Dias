@@ -1,0 +1,116 @@
+{
+  "_obs": "Fretes confirmados pelo Luan em 24/11.",
+  "nome_loja": "Loja Dias Peças",
+  "site_url": "https://lojadias.com.br",
+  "whatsapp": "5527920006463",
+  "whatsapp_exibir": "(27) 92000-6463",
+  "endereco": "Vila Velha, ES",
+  "cidade_base": "Vila Velha",
+  "horario": "Seg a Sáb, 8h às 18h",
+  "desconto_pix": 0,
+  "corte_mesmo_dia": "12h",
+  "cidades": [
+    {
+      "nome": "Vitória",
+      "slug": "vitoria",
+      "normal": 15,
+      "gratis_acima": 129.9
+    },
+    {
+      "nome": "Vila Velha",
+      "slug": "vila-velha",
+      "normal": 15,
+      "gratis_acima": 129.9
+    },
+    {
+      "nome": "Serra",
+      "slug": "serra",
+      "normal": 25,
+      "gratis_acima": 159.9
+    },
+    {
+      "nome": "Cariacica",
+      "slug": "cariacica",
+      "normal": 20,
+      "gratis_acima": 129.9
+    },
+    {
+      "nome": "Viana",
+      "slug": "viana",
+      "normal": 25,
+      "gratis_acima": 159.9
+    }
+  ],
+  "fornecedor_principal": "Real Motopeças (ES)",
+  "pix": {
+    "chave": "46178859000196",
+    "nome": "LUAN VIEIRA DIAS",
+    "cidade": "VILA VELHA",
+    "titular": "LUAN VIEIRA DIAS",
+    "banco": "Banco Inter",
+    "_obs": "Luan 27/11: chave Pix = CNPJ da loja (46.178.859/0001-96), conta Inter em nome dele. O site mostra só o nome e o banco que o app do cliente mostra. Nunca publicar CPF, agência ou conta."
+  },
+  "fretes_confirmados": true,
+  "cnpj": "46.178.859/0001-96",
+  "frete_gratis_acima": 129.9,
+  "entrega_ate": "18h",
+  "so_moto": true,
+  "firebase": {
+    "apiKey": "AIzaSyDJawjGeT5J9i5LzR2-l1qGDvG3MBug8dQ",
+    "authDomain": "loja-dias-7163.firebaseapp.com",
+    "projectId": "loja-dias-7163",
+    "storageBucket": "loja-dias-7163.firebasestorage.app",
+    "messagingSenderId": "696872279122",
+    "appId": "1:696872279122:web:8d4426f275d38b7758d38b"
+  },
+  "google_ads_id": "AW-16976838076",
+  "google_ads_label": "y90BCIDl-74dELz7l58_",
+  "black_friday": true,
+  "appcheck_site_key": "6LdJRDEuAAAAAKO-W0PJwfNCn8uMA7ul0ZMSodhQ",
+  "dominio": "lojadias.com.br",
+  "pagar_na_entrega": false,
+  "_obs_pagar_na_entrega": "Luan 26/11 19h41: tirou o Pix na entrega (achou com cara de golpe). Só Pix na hora; a peça só sai depois que o Pix cai na conta da loja. Para voltar, true (a trava entrega_limite/entrega_sinal continua no config).",
+  "indicacao": {
+    "ligada": true,
+    "desconto": 0,
+    "comissao": 0.1,
+    "lucro_min": 8,
+    "dias": 30,
+    "_obs": "Programa de indicação. 26/11: Luan trocou 5%+5% por 10% de comissão só para quem indica (cliente indicado sem desconto). Comissão só nas peças em que ainda sobra lucro_min. Para desligar: ligada=false."
+  },
+  "pix_antecipado_acima": 250,
+  "_obs_pix_antecipado": "Mesa Loja 25/11 (ata em claude/atas-mesa-loja.md): peças de R$ 250 ou mais só com Pix antecipado (sem Pix na entrega). Kits de R$ 55 ou mais mostram frete grátis no lugar de 'economize'.",
+  "entrega_limite": 150,
+  "entrega_sinal": 15,
+  "_obs_trava_entrega": "Luan escolheu 'Sim, com trava' (Mesa 25/11 23h52 UTC): Pix na entrega até R$ 150; acima, sinal de R$ 15 no Pix na hora do pedido e o resto na entrega; loja confirma endereço pelo WhatsApp às 11h45.",
+  "login_email": true,
+  "_obs_login_email": "Login por link no e-mail (sem senha). Só ligar (true) depois de ativar Email/Senha + Link de e-mail no Firebase Authentication do loja-dias-7163.",
+  "carro": {
+    "frete": {
+      "vitoria": 15,
+      "vila-velha": 15,
+      "cariacica": 20,
+      "serra": 25,
+      "viana": 25
+    },
+    "gratis_acima": 129.9,
+    "fiorino": {
+      "vitoria": 50,
+      "vila-velha": 50,
+      "cariacica": 50,
+      "serra": 60,
+      "viana": 60
+    },
+    "fiorino_kg": 20,
+    "_obs": "Mesa Pauta 6/6B (ATA 26/11 19h26) + Luan 26/11 19h27 (Fiorino R$ 50/60). Pedido com peça de carro usa o frete de carro (misto também). Fiorino: peça com coluna fiorino=sim no produtos.csv ou carrinho acima de fiorino_kg (coluna peso_kg); sem frete grátis e Pix 100% antecipado. Carro: placa conferida no WhatsApp antes do Pix; mesmo dia só de segunda a sexta (sábado chega segunda até 14h).",
+    "gratis_cidade": {
+      "vitoria": 129.9,
+      "vila-velha": 129.9,
+      "cariacica": 129.9,
+      "serra": 159.9,
+      "viana": 159.9
+    }
+  },
+  "addon_min": 49.9,
+  "_obs_frete": "Luan 26/11 23h22 (card): frete 15/15/20/25/25, grátis a partir de 129,90 (Vitória, VV, Cariacica) e 159,90 (Serra, Viana), moto e carro. Conta: 2 pedidos por viagem, custo motoboy VV 25-35, Vit 25-40, Car 35-55, Serra/Viana 50-70."
+}

@@ -1,0 +1,40 @@
+    // ===== Avaliações (25/11): qualquer pessoa lê só as APROVADAS; cliente logado escreve só a própria; loja aprova =====
+    // id = <uid>_<chave da peça>: 1 avaliação por cliente por peça. Status sempre começa "pendente".
+    function mini(l, i) { return l.size() <= i || (l[i] is string && l[i].size() <= 40000 && l[i].matches('data:image/(webp|jpeg);base64,[A-Za-z0-9+/=]+')); }
+    function avaliacaoOk(aid) {
+      let d = request.resource.data;
+      return request.auth != null && request.auth.token.email_verified == true
+        && d.keys().hasOnly(['uid', 'sku', 'chave', 'produto', 'nome', 'estrelas', 'texto', 'fotos', 'video', 'uso_fotos', 'pedido', 'status', 'criado'])
+        && d.keys().hasAll(['uid', 'sku', 'chave', 'nome', 'estrelas', 'texto', 'fotos', 'video', 'uso_fotos', 'status', 'criado'])
+        && d.uid == request.auth.uid
+        && d.chave is string && d.chave.matches('[A-Za-z0-9.-]{1,40}') && aid == request.auth.uid + '_' + d.chave
+        && d.sku is string && d.sku.size() <= 40
+        && (!('produto' in d) || (d.produto is string && d.produto.size() <= 90))
+        && d.nome is string && d.nome.size() >= 1 && d.nome.size() <= 40
+        && d.estrelas is int && d.estrelas >= 1 && d.estrelas <= 5
+        && d.texto is string && d.texto.size() <= 1000
+        && d.fotos is list && d.fotos.size() <= 4 && mini(d.fotos, 0) && mini(d.fotos, 1) && mini(d.fotos, 2) && mini(d.fotos, 3)
+        && d.video is bool && d.uso_fotos is bool
+        && (!('pedido' in d) || (d.pedido is string && d.pedido.matches('[A-Za-z0-9]{20}')))
+        && d.status == 'pendente' && d.criado == request.time;
+    }
+    function avDoc(aid) { return get(/databases/$(db)/documents/avaliacoes/$(aid)).data; }
+    match /avaliacoes/{aid} {
+      allow read: if resource.data.status == 'aprovada' || (request.auth != null && resource.data.uid == request.auth.uid) || loja();
+      allow create: if avaliacaoOk(aid);
+      allow update: if (avaliacaoOk(aid) && resource.data.uid == request.auth.uid)
+        || (loja() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificada', 'moderado_em'])
+            && request.resource.data.status in ['aprovada', 'recusada'] && request.resource.data.verificada is bool
+            && request.resource.data.moderado_em == request.time);
+      allow delete: if (request.auth != null && resource.data.uid == request.auth.uid) || loja();
+      // foto grande (até ~500 KB cada): só abre quando o cliente toca na miniatura
+      match /fotos/{n} {
+        allow read: if avDoc(aid).status == 'aprovada' || (request.auth != null && avDoc(aid).uid == request.auth.uid) || loja();
+        allow create, update: if request.auth != null && n in ['0', '1', '2', '3']
+          && avDoc(aid).uid == request.auth.uid && int(n) < avDoc(aid).fotos.size()
+          && request.resource.data.keys().hasOnly(['img'])
+          && request.resource.data.img is string && request.resource.data.img.size() <= 700000
+          && request.resource.data.img.matches('data:image/(webp|jpeg);base64,[A-Za-z0-9+/=]+');
+        allow delete: if (request.auth != null && aid.matches(request.auth.uid + '_.+')) || loja();
+      }
+    }
