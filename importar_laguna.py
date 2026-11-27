@@ -55,6 +55,12 @@ def col(r, *nomes):
     return ""
 
 
+def bateria_grande(t):
+    """Pauta 6B: bateria de 75 Ah ou mais vai de Fiorino."""
+    g = re.search(r"bateria.*?(\d{2,3})\s*a?h\b", t)
+    return bool(g and int(g.group(1)) >= 75)
+
+
 def numero(s):
     s = (s or "").strip().replace("R$", "").strip()
     if "," in s:
@@ -140,13 +146,13 @@ def main():
         peca = nome_peca(nome)
         cs = carros(apl)
         sku = cod if cod not in skus_moto else f"LG-{cod}"
-        aviao = _n(col(r, "aviao")) in ("sim", "1", "true", "s", "x")
+        aviao = _n(col(r, "aviao")) in ("sim", "1", "true", "s", "x") or _n(col(r, "vitoria")) in ("nao", "0", "false", "n")  # sem estoque em Vitória = encomenda
         peso = col(r, "peso_kg").replace(",", ".")
         novos.append(dict(
             sku=sku, nome=f"{peca} {cs} {marca}".replace("  ", " ").strip(), tipo="carro", categoria=categoria(nome, col(r, "categoria")),
             marca=marca, veiculos=";".join(x.strip() for x in re.split(r"[;|]", apl) if x.strip()), preco="", custo=f"{custo:.2f}",
             ml_medio="", estoque="10", imagem=imagem(col(r, "imagem_url")), descricao="", partes="", peso_kg=peso,
-            fiorino="sim" if FIORINO.search(t) else "", encomenda="sim" if aviao else "", fornecedor="Laguna"))
+            fiorino="sim" if (FIORINO.search(t) or bateria_grande(t)) else "", encomenda="sim" if aviao else "", fornecedor="Laguna"))
     with open(RAIZ / "dados/produtos.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CAMPOS, extrasaction="ignore")
         w.writeheader()
