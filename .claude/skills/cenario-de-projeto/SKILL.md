@@ -77,15 +77,74 @@ Objetivo: saber se deu certo e corrigir o rumo.
 - Se o resultado sair do esperado: voltar à etapa 1 com os dados novos (o método é um ciclo).
 Saída: lista de indicadores, metas, datas e plano de correção.
 
+## Averiguação dura (vale dentro das 5 etapas, não é etapa nova)
+
+### Regra zero: olhar antes de afirmar
+- Antes de escrever "não existe", "não tem" ou "não foi feito", conferir TODAS as fontes: site no ar, repositórios, documentos do projeto, memória, conversas passadas e apps conectados.
+- Repositório vazio não prova que o projeto não existe. Documento sem data recente não prova que algo ainda está pendente.
+- Fonte que não foi aberta não pode ser citada como vista.
+
+### Selo de origem em cada fato
+Todo fato da etapa 1 leva um selo:
+- [visto] — Claude abriu e conferiu; dizer onde (link, arquivo, tela).
+- [Luan disse] — informado pelo Luan, ainda não conferido.
+- [a confirmar] — ninguém confirmou (regra de fidelidade acima).
+Documento antigo: anotar a data dele; o que pode ter mudado depois vira [a confirmar]. Fato sem selo não entra no cenário.
+
+### Caça a contradições (da etapa 1 para a 2)
+Comparar sempre, lado a lado:
+- promessa em destaque × letra miúda (perguntas frequentes, termos, regras);
+- preço anunciado × preço real do produto ("a partir de R$ X" precisa existir um item a R$ X);
+- números que deveriam bater: contagens, totais, preço de kit × soma dos itens avulsos;
+- quem vende × quem recebe o dinheiro (nome da empresa, CNPJ, titular do Pix, nome na nota);
+- contato divulgado em cada página e canal (telefone ou WhatsApp diferente entre páginas);
+- documento × sistema no ar (o documento diz pendente e o sistema mostra feito, ou o contrário).
+Cada contradição encontrada vira uma ameaça na etapa 2, com o lugar exato onde aparece.
+
+### Teste do dinheiro (etapa 2)
+- Toda promessa que custa dinheiro (frete grátis, desconto, brinde, garantia, comissão, indicação) passa pela conta: valor do pedido − custo do produto − custo de entrega ou repasse − taxas.
+- Usar números reais do Luan (tabela de preços, repasse do motoboy). Faltou o custo do produto → margem [a confirmar] e a chance da ameaça fica "desconhecida", nunca "baixa".
+- Fazer a conta no pior caso: o menor pedido que ganha a promessa, entregue no lugar mais caro de atender.
+- Conta feita em código quando houver shell; mostrar o resultado, não só a conclusão.
+
+### Teste legal e fiscal (etapa 2)
+- Verificar se o projeto depende de: atividade permitida no CNPJ/MEI, emissão de nota fiscal, dinheiro recebido em conta de pessoa física, termos de uso e privacidade, marca de terceiros, regras de plataforma (WhatsApp, Mercado Livre, Google).
+- Claude não dá parecer jurídico nem contábil: cada ponto entra como ameaça "[a confirmar com contadora/advogado]".
+
+### Ponto único de falha (etapa 2)
+- Perguntar para cada peça: se isto parar amanhã, o projeto para? (uma pessoa, um servidor, um número de WhatsApp, um fornecedor, uma conta bancária, uma chave de acesso).
+- Cada "sim" é ameaça de impacto alto.
+
+### Classificação rígida (etapa 2)
+- Chance "baixa" só com prova (já testado, histórico real). Sem prova → média ou maior.
+- Impacto "alto" sempre que atinge dinheiro, cliente final, lei ou parada total.
+- Ameaça que impede começar ou que pode dar prejuízo já no primeiro pedido = BLOQUEADOR. Vai no topo da lista, e a etapa 4 não começa sem plano para ele.
+
+### Advogado do contra (etapa 3)
+- Para a opção escolhida, escrever o principal motivo pelo qual ela pode falhar e o gatilho de troca (o que precisa acontecer para mudar de opção).
+- Se nenhuma opção resolve um bloqueador, dizer isso com todas as letras, em vez de escolher a "menos pior" em silêncio.
+
+### Prova de execução (etapas 4 e 5)
+- Cada passo tem "como saber que terminou": link no ar, print, pedido de teste, arquivo salvo.
+- Claude testa o que puder testar sozinho (abrir a página, pedido de teste sem pagamento, rodar os testes do código).
+- Indicador sem fonte de dados definida ("onde esse número vai ser lido") não vale.
+
+### O que não fazer
+- Não suavizar problema para agradar. Problema grave aparece no topo, com palavras diretas.
+- Não repetir o mesmo problema em duas etapas com nome diferente: uma ameaça, uma solução, uma linha cada.
+- Detalhe só de aparência (erro de digitação, espaço faltando, texto repetido) que não afeta venda, dinheiro, lei ou operação vai junto numa linha só: "ajustes pequenos".
+
 ## Formato de saída
 
 ```
 # Cenário — <nome do projeto>
 
 ## 1. Situação
-<retrato do hoje>
+- <fato> [visto: onde] / [Luan disse] / [a confirmar]
 
 ## 2. Ameaças e oportunidades
+Bloqueadores:
+- <bloqueador> — onde aparece
 Ameaças:
 - <ameaça> — impacto <A/M/B>, chance <A/M/B>
 Oportunidades:
@@ -99,12 +158,13 @@ Opções para <problema central>:
 
 ## 4. Execução
 Escolha: <opção> — motivo: <critério>
+Pode falhar se: <motivo> — gatilho de troca: <o que faz mudar>
 Passos:
-1. <o quê> — <quem> — <até quando>
+1. <o quê> — <quem> — <até quando> — prova: <como saber que terminou>
 Primeiro passo: <ação concreta>
 
 ## 5. Resultados
-- <indicador> — meta <valor> — checar em <data>
+- <indicador> — meta <valor> — fonte: <onde ler> — checar em <data>
 Se sair do esperado: <correção> → volta à etapa 1.
 ```
 
@@ -120,4 +180,11 @@ Se sair do esperado: <correção> → volta à etapa 1.
 - [ ] Cenário com 1.000 caracteres ou mais, sem enchimento.
 - [ ] Pelo menos 2 opções para o problema central.
 - [ ] Primeiro passo concreto definido.
-- [ ] Indicadores com meta e data de checagem.
+- [ ] Indicadores com meta, fonte e data de checagem.
+- [ ] Todas as fontes conferidas antes de dizer que algo não existe.
+- [ ] Cada fato da etapa 1 com selo de origem.
+- [ ] Contradições comparadas e transformadas em ameaças.
+- [ ] Conta do dinheiro feita no pior caso para cada promessa que custa.
+- [ ] Pontos legais/fiscais e pontos únicos de falha listados.
+- [ ] Bloqueadores no topo, cada um com plano.
+- [ ] Nenhum problema repetido em duas etapas.
