@@ -951,7 +951,7 @@ def entrega():
  '<p><b>Pagando na entrega:</b> o motoboy chega, você faz o Pix para a loja e ele entrega a peça assim que o Pix aparecer na conta da loja. Print de comprovante não vale, a confirmação é no banco da loja. Leva menos de um minuto. Não aceitamos dinheiro nem cartão.</p>'
  '<p>Pedido de até R$ 150 você paga todo na entrega. Acima de R$ 150, você paga um sinal de R$ 15 no Pix na hora do pedido, que a loja usa para separar a sua peça, e o resto na entrega. Peça de R$ 250 ou mais é paga no Pix antes da entrega.</p>'
  '<p>Às 11h45 a loja confirma seu endereço pelo WhatsApp antes de separar os pedidos do dia.</p>') if NA_ENTREGA else f'<h2 style="margin-top:28px">Pagamento</h2><p>Pix na hora do pedido, com o Pix copia e cola do valor exato. A peça sai para entrega assim que o Pix cai na conta da loja. Pagamento só pelo site ou pelo WhatsApp oficial da loja, {e(CFG["whatsapp_exibir"])}. O motoboy não cobra nada na porta.</p>'}
-<h2 style="margin-top:28px">Peças grandes</h2><p>Peças que não cabem no baú da moto, como escapamento, para-choque e par de amortecedores, são combinadas pelo WhatsApp para retirada ou frete de carro.</p></div></section>'''
+<h2 style="margin-top:28px">Peças grandes</h2><p>Quase tudo vai de moto. Peça de carro que não cabe na moto, ou pedido acima de 20 kg, vai de Fiorino: R$ 50 em Vitória, Vila Velha e Cariacica, e R$ 60 em Serra e Viana, sem frete grátis e com Pix antes da entrega. A loja combina o horário pelo WhatsApp.</p><p>A loja vende só pela internet e não tem balcão para retirada. Não vendemos para-choque, capô, portas, para-lama, vidros nem motor completo.</p></div></section>'''
     pagina("entrega.html", "Entrega e fretes na Grande Vitória | Loja Dias Peças",
            "Fretes e prazos de entrega por motoboy em Vitória, Vila Velha, Serra, Cariacica e Viana.", corpo)
 
@@ -960,7 +960,7 @@ def carrinho():
 <div class="panel">
 <fieldset><legend class="lbl">Entrega</legend>
 <label class="opt"><input type="radio" name="ship" id="shipN" value="normal" checked><span id="shipNtit">Motoboy<small id="shipNnota">Pedido até {CFG["corte_mesmo_dia"]}, entrega até {CFG["entrega_ate"]}{(". Frete grátis acima de " + brl(GRATIS)) if GRATIS else ""}</small></span><em id="feeN">—</em></label>
-<label class="opt"><input type="radio" name="ship" id="shipR" value="retirada"><span>Retirar<small>Combinar pelo WhatsApp</small></span><em>R$ 0,00</em></label></fieldset>
+</fieldset>
 <div class="field" id="citybox"><label class="lbl" for="city">Cidade</label><select id="city"></select></div>
 <div class="field" id="addrbox"><label class="lbl" for="addr">Endereço e bairro</label><input id="addr" placeholder="Rua, número, bairro" autocomplete="street-address"></div>
 <div class="field" id="placabox" hidden><label class="lbl" for="placa">Placa do carro</label><input id="placa" placeholder="ABC1D23" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false"><small class="note">A loja confere pela placa se a peça serve antes de você pagar.</small></div>
