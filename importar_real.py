@@ -76,6 +76,8 @@ def montar_kits(por):
         preco = _noventa(soma * 0.95 - 1)
         if preco - custo < 8:
             preco = _noventa(custo + 8)
+        if preco - custo < preco * 0.20:  # ASAS 27/11: lucro de pelo menos 20% do preço também no kit
+            preco = _noventa(custo / 0.80)
         if preco >= soma:  # kit que não sai mais barato que separado não é kit
             print("kit fora (não fica mais barato):", ksku)
             continue
